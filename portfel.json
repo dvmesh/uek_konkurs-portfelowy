@@ -1,1 +1,9 @@
-
+{
+  "kapital_startowy": 100.0,
+  "pozycje": {
+    "S&P 500": 0.0,
+    "US10Y Yield": 50.0,
+    "Złoto (Gold)": -50.0,
+    "EUR/USD": 0.0
+  }
+}
