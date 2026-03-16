@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # Konfiguracja wyglądu
-st.set_page_config(page_title="Dashboard Konkursowy", page_icon="📈", layout="wide")
-st.title("📈 Terminal Konkursowy LIVE")
+st.set_page_config(page_title="`grupa 13.", page_icon="📈", layout="wide")
+st.title("📈 Portfel grupy 13. LIVE")
 
 # === TWOJA STRATEGIA ===
 kapital_poczatkowy = 100.0
@@ -116,7 +116,7 @@ if not historia_portfela.empty:
 
     # 3. Ciągła linia (która ostatecznie zakrywa "dziurę")
     # Zmienia kolor w zależności od tego, czy aktualnie wygrywacie czy przegrywacie
-    kolor_linii = "#00ffcc" if historia_portfela['Zysk_Total'].iloc[-1] >= 0 else "#ff4d4d"
+    kolor_linii = "#ffffff" if historia_portfela['Zysk_Total'].iloc[-1] >= 0 else "#ffffff"
     
     fig_portfel.add_trace(go.Scatter(
         x=historia_portfela.index, y=historia_portfela['Zysk_Total'],
