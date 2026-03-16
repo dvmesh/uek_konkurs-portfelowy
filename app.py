@@ -7,10 +7,38 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# === KONFIGURACJA APLIKACJI ===
 st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
 
-# === SYSTEM ZAPISU (Baza Danych) ===
+st.markdown(
+    """
+    <style>
+    /* Modyfikujemy kontener ze strzałką */
+    [data-testid="collapsedControl"] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    /* Dodajemy pionowy tekst pod spodem */
+    [data-testid="collapsedControl"]::after {
+        content: "PANEL REBALANSU";
+        margin-top: 25px;
+        writing-mode: vertical-rl; /* Ustawia tekst pionowo */
+        text-orientation: mixed;
+        font-size: 13px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.4); /* Półprzezroczysty, stylowy szaro-biały */
+        letter-spacing: 3px;
+    }
+    /* Efekt podświetlenia po najechaniu myszką */
+    [data-testid="collapsedControl"]:hover::after {
+        color: rgba(0, 255, 0, 0.8); /* Zmienia kolor na neonowy zielony przy najechaniu */
+        transition: 0.3s;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 PLIK_USTAWIEN = "portfel.json"
 
 def wczytaj_ustawienia():
@@ -37,12 +65,10 @@ TICKERY = {
     "EUR/USD": "EURUSD=X"
 }
 
-# === LOGIKA CZASU I ODLICZANIA DO NIEDZIELI 23:00 ===
 teraz = datetime.now()
 ostatni_poniedzialek = teraz - timedelta(days=teraz.weekday())
 data_startu_str = ostatni_poniedzialek.strftime('%Y-%m-%d')
 
-# Szukamy najbliższej niedzieli 23:00
 dni_do_niedzieli = 6 - teraz.weekday()
 najblizsza_niedziela = teraz + timedelta(days=dni_do_niedzieli)
 deadline = najblizsza_niedziela.replace(hour=23, minute=0, second=0, microsecond=0)
@@ -57,7 +83,6 @@ minuty, _ = divmod(reszta, 60)
 
 czy_mozna_rebalansowac = (teraz.weekday() == 6) and (teraz.hour < 23)
 
-# === POBIERANIE DANYCH (Wykonujemy najpierw, żeby znać stan konta) ===
 @st.cache_data(ttl=60)
 def pobierz_dane_rynkowe(ticker, data_startu):
     hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
@@ -106,11 +131,10 @@ with st.spinner('Pobieram dane z giełdy...'):
                     historia_portfela = historia_portfela.join(seria_zysku, how='outer')
                     
         except Exception as e:
-            pass # Ciche pominięcie błędów w tle
+            pass
 
 stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
 
-# === PANEL ADMINISTRATORA Z BLOKADĄ CZASOWĄ I REGULAMINOWĄ ===
 with st.sidebar:
     st.header("⚙️ Panel Rebalansu")
     
@@ -121,7 +145,7 @@ with st.sidebar:
         st.success("🔓 **Niedziela! Panel Otwarty**")
         haslo = st.text_input("Podaj PIN:", type="password")
         
-        if haslo == "1234":
+        if haslo == "2137":
             st.markdown(f"**Twój wypracowany kapitał na start:** `{stan_konta_na_zywo:.2f} j.p.`")
             nowy_kapital = st.number_input("Zatwierdź kapitał startowy", value=float(round(stan_konta_na_zywo, 2)), step=1.0)
             
@@ -137,7 +161,6 @@ with st.sidebar:
             st.divider()
             st.write(f"Zainwestowano: **{suma_zaangazowania}** / {nowy_kapital} j.p.")
             
-            # Weryfikacja Regulaminu!
             if suma_zaangazowania > nowy_kapital:
                 st.error("❌ Regulamin: Przekroczyłeś dostępny kapitał konta!")
             elif suma_zaangazowania < 20.0 and suma_zaangazowania > 0:
@@ -154,10 +177,8 @@ with st.sidebar:
                     time.sleep(1)
                     st.rerun()
 
-# === GŁÓWNY INTERFEJS ===
 st.title("📈 Portfel grupy 13. LIVE")
 
-# Przygotowanie wykresu
 if not historia_portfela.empty:
     historia_portfela = historia_portfela.bfill().ffill().fillna(0)
     historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
