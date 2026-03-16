@@ -8,13 +8,12 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # === KONFIGURACJA APLIKACJI ===
-st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Grupa 13. Terminal", page_icon="📈", layout="wide")
 
-# === SYSTEM ZAPISU (Baza Danych w pliku JSON) ===
+# === SYSTEM ZAPISU (Baza Danych) ===
 PLIK_USTAWIEN = "portfel.json"
 
 def wczytaj_ustawienia():
-    # Jeśli plik istnieje, ładujemy Wasze ustawienia. Jeśli nie, ładujemy startowe.
     if os.path.exists(PLIK_USTAWIEN):
         with open(PLIK_USTAWIEN, "r") as f:
             return json.load(f)
@@ -27,12 +26,10 @@ def zapisz_ustawienia(ustawienia):
     with open(PLIK_USTAWIEN, "w") as f:
         json.dump(ustawienia, f)
 
-# Wczytywanie aktualnych ustawień do zmiennych
 ustawienia = wczytaj_ustawienia()
 kapital_poczatkowy = ustawienia["kapital_startowy"]
 pozycje_z_panelu = ustawienia["pozycje"]
 
-# Słownik wszystkich dozwolonych instrumentów i ich tickerów
 TICKERY = {
     "S&P 500": "^GSPC",
     "US10Y Yield": "^TNX",
@@ -40,53 +37,27 @@ TICKERY = {
     "EUR/USD": "EURUSD=X"
 }
 
-# === PANEL ADMINISTRATORA (PASEK BOCZNY) ===
-with st.sidebar:
-    st.header("⚙️ Panel Rebalansu")
-    st.markdown("Zaloguj się w niedzielę, by zaktualizować portfel.")
-    
-    # Proste zabezpieczenie PIN-em (możesz zmienić "1234" na co chcesz)
-    haslo = st.text_input("Podaj PIN:", type="password")
-    
-    if haslo == "1234":
-        st.success("Zalogowano pomyślnie.")
-        
-        nowy_kapital = st.number_input("Kapitał na start tygodnia (j.p.)", 
-                                       value=float(kapital_poczatkowy), step=1.0)
-        
-        st.markdown("### Obstawienia (LONG > 0, SHORT < 0)")
-        nowe_pozycje = {}
-        suma_zaangazowania = 0.0
-        
-        # Generowanie inputów dla każdego instrumentu
-        for aktywo in TICKERY.keys():
-            wartosc = st.number_input(aktywo, value=float(pozycje_z_panelu.get(aktywo, 0.0)), step=10.0)
-            nowe_pozycje[aktywo] = wartosc
-            suma_zaangazowania += abs(wartosc) # Liczymy wartość bezwzględną dla regulaminu
-            
-        st.divider()
-        st.write(f"Zainwestowany kapitał: **{suma_zaangazowania}** / {nowy_kapital}")
-        
-        # Walidacja zgodności z regulaminem (max 100% kapitału)
-        if suma_zaangazowania > nowy_kapital:
-            st.error("❌ Odrzucono: Zainwestowałeś więcej niż masz na koncie!")
-        else:
-            if st.button("💾 Zapisz na nowy tydzień"):
-                nowe_ustawienia = {
-                    "kapital_startowy": nowy_kapital,
-                    "pozycje": nowe_pozycje
-                }
-                zapisz_ustawienia(nowe_ustawienia)
-                st.cache_data.clear() # Czyścimy pamięć starych cen
-                st.success("Zapisano! Odświeżam terminal...")
-                time.sleep(1)
-                st.rerun()
-
-# === LOGIKA CZASU (Zawsze szuka ostatniego poniedziałku) ===
-dzisiaj = datetime.today()
-ostatni_poniedzialek = dzisiaj - timedelta(days=dzisiaj.weekday())
+# === LOGIKA CZASU I ODLICZANIA DO NIEDZIELI 23:00 ===
+teraz = datetime.now()
+ostatni_poniedzialek = teraz - timedelta(days=teraz.weekday())
 data_startu_str = ostatni_poniedzialek.strftime('%Y-%m-%d')
 
+# Szukamy najbliższej niedzieli 23:00
+dni_do_niedzieli = 6 - teraz.weekday()
+najblizsza_niedziela = teraz + timedelta(days=dni_do_niedzieli)
+deadline = najblizsza_niedziela.replace(hour=23, minute=0, second=0, microsecond=0)
+
+if teraz > deadline:
+    deadline += timedelta(days=7)
+
+roznica = deadline - teraz
+dni = roznica.days
+godziny, reszta = divmod(roznica.seconds, 3600)
+minuty, _ = divmod(reszta, 60)
+
+czy_mozna_rebalansowac = (teraz.weekday() == 6) and (teraz.hour < 23)
+
+# === POBIERANIE DANYCH (Wykonujemy najpierw, żeby znać stan konta) ===
 @st.cache_data(ttl=60)
 def pobierz_dane_rynkowe(ticker, data_startu):
     hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
@@ -96,19 +67,14 @@ def pobierz_dane_rynkowe(ticker, data_startu):
         hist.index = hist.index.tz_localize(None) 
     return hist
 
-# === GŁÓWNY INTERFEJS (DLA CAŁEJ GRUPY) ===
-st.title("📈 Portfel grupy 13. LIVE")
-st.markdown(f"**Start bieżącego tygodnia:** `{data_startu_str}` | **Ostatnia aktualizacja:** `{datetime.now().strftime('%H:%M:%S')}`")
-
 zysk_laczny = 0.0
 dane_do_tabeli = []
 historia_portfela = pd.DataFrame()
 
-# Pobieranie danych (tylko dla instrumentów, na których coś gramy!)
 with st.spinner('Pobieram dane z giełdy...'):
     for nazwa, wielkosc in pozycje_z_panelu.items():
         if wielkosc == 0: 
-            continue # Pomijamy aktywa, na które nie postawiliście kasy
+            continue 
             
         ticker = TICKERY[nazwa]
         try:
@@ -140,22 +106,70 @@ with st.spinner('Pobieram dane z giełdy...'):
                     historia_portfela = historia_portfela.join(seria_zysku, how='outer')
                     
         except Exception as e:
-            st.error(f"Błąd dla {nazwa}: {e}")
+            pass # Ciche pominięcie błędów w tle
 
-# Przygotowanie wykresu i metryk
+stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
+
+# === PANEL ADMINISTRATORA Z BLOKADĄ CZASOWĄ I REGULAMINOWĄ ===
+with st.sidebar:
+    st.header("⚙️ Panel Rebalansu")
+    
+    if not czy_mozna_rebalansowac:
+        st.error("🔒 **Panel Zablokowany**\n\nZgodnie z regulaminem, edycja portfela jest możliwa **tylko w niedzielę do godziny 23:00**.")
+        st.info("Poczekaj do niedzieli, aby wprowadzić nowy formularz.")
+    else:
+        st.success("🔓 **Niedziela! Panel Otwarty**")
+        haslo = st.text_input("Podaj PIN:", type="password")
+        
+        if haslo == "1234":
+            st.markdown(f"**Twój wypracowany kapitał na start:** `{stan_konta_na_zywo:.2f} j.p.`")
+            nowy_kapital = st.number_input("Zatwierdź kapitał startowy", value=float(round(stan_konta_na_zywo, 2)), step=1.0)
+            
+            st.markdown("### Nowe obstawienia (LONG > 0, SHORT < 0)")
+            nowe_pozycje = {}
+            suma_zaangazowania = 0.0
+            
+            for aktywo in TICKERY.keys():
+                wartosc = st.number_input(aktywo, value=float(pozycje_z_panelu.get(aktywo, 0.0)), step=10.0)
+                nowe_pozycje[aktywo] = wartosc
+                suma_zaangazowania += abs(wartosc) 
+                
+            st.divider()
+            st.write(f"Zainwestowano: **{suma_zaangazowania}** / {nowy_kapital} j.p.")
+            
+            # Weryfikacja Regulaminu!
+            if suma_zaangazowania > nowy_kapital:
+                st.error("❌ Regulamin: Przekroczyłeś dostępny kapitał konta!")
+            elif suma_zaangazowania < 20.0 and suma_zaangazowania > 0:
+                st.error("❌ Regulamin: Minimalny zainwestowany kapitał to 20 j.p.!")
+            else:
+                if st.button("💾 ZAPISZ I WYŚLIJ FORMULARZ"):
+                    nowe_ustawienia = {
+                        "kapital_startowy": nowy_kapital,
+                        "pozycje": nowe_pozycje
+                    }
+                    zapisz_ustawienia(nowe_ustawienia)
+                    st.cache_data.clear() 
+                    st.success("Zapisano na nowy tydzień!")
+                    time.sleep(1)
+                    st.rerun()
+
+# === GŁÓWNY INTERFEJS ===
+st.title("📈 Portfel grupy 13. LIVE")
+st.info(f"⏳ **Czas na wysłanie formularza (Niedziela 23:00):** {dni} dni, {godziny} godzin, {minuty} minut")
+
+# Przygotowanie wykresu
 if not historia_portfela.empty:
     historia_portfela = historia_portfela.bfill().ffill().fillna(0)
     historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
     zysk_pos = historia_portfela['Zysk_Total'].clip(lower=0) 
     zysk_neg = historia_portfela['Zysk_Total'].clip(upper=0) 
 
-stan_konta = kapital_poczatkowy + zysk_laczny
-
 st.divider()
 col1, col2, col3 = st.columns(3)
-col1.metric("Kapitał początkowy", f"{kapital_poczatkowy:.4f} j.p.")
+col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.4f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
-col3.metric("Stan Konta (LIVE)", f"{stan_konta:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
+col3.metric("Stan Konta na Weekend", f"{stan_konta_na_zywo:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 
 st.divider()
 
@@ -168,18 +182,15 @@ if not historia_portfela.empty:
     fig_portfel.update_layout(template="plotly_dark", margin=dict(l=20, r=20, t=30, b=20), height=400, yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.5)', zerolinewidth=1))
     st.plotly_chart(fig_portfel, use_container_width=True)
 
-st.subheader("Otwarte pozycje (Ten tydzień)")
+st.subheader("Otwarte pozycje w tym tygodniu")
 if dane_do_tabeli:
     df = pd.DataFrame(dane_do_tabeli)
     st.dataframe(df, use_container_width=True, hide_index=True)
 else:
-    st.info("Brak otwartych pozycji w tym tygodniu (wszystko ustawione na 0).")
+    st.info("Brak otwartych pozycji.")
 
 st.divider()
-
-if st.button("🔄 Wymuś odświeżenie danych"):
-    st.cache_data.clear()
-    st.rerun()
+st.caption("🟢 System Auto-odświeżania: 60 sek. Zgodność z Regulaminem Włączona.")
 
 time.sleep(60)
 st.rerun()
