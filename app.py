@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # Konfiguracja wyglądu
-st.set_page_config(page_title="`grupa 13.", page_icon="📈", layout="wide")
+st.set_page_config(page_title="grupa 13.", page_icon="📈", layout="wide")
 st.title("📈 Portfel grupy 13. LIVE")
 
 # === TWOJA STRATEGIA ===
@@ -20,7 +20,7 @@ dzisiaj = datetime.today()
 ostatni_poniedzialek = dzisiaj - timedelta(days=dzisiaj.weekday())
 data_startu_str = ostatni_poniedzialek.strftime('%Y-%m-%d')
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def pobierz_dane_rynkowe(ticker, data_startu):
     hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
     if hist.empty:
@@ -139,7 +139,15 @@ st.divider()
 st.subheader("Szczegóły otwartych pozycji")
 df = pd.DataFrame(dane_do_tabeli)
 st.dataframe(df, use_container_width=True, hide_index=True)
+st.divider()
 
-if st.button("🔄 Wymuś odświeżenie danych z giełdy"):
+# Wyświetlanie przycisku (dla niecierpliwych)
+if st.button("🔄 Wymuś natychmiastowe odświeżenie"):
     st.cache_data.clear()
     st.rerun()
+
+st.caption("🟢 System zoptymalizowany. Auto-odświeżanie i Cache: 60 sekund. Interwał H1.")
+
+# Pętla automatycznego odświeżania strony
+time.sleep(60)
+st.rerun()
