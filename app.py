@@ -31,6 +31,8 @@ def pobierz_dane_rynkowe(ticker, data_startu):
     return hist
 
 st.markdown(f"**Tydzień startowy:** `{data_startu_str}` | **Ostatnie dane:** `{datetime.now().strftime('%H:%M:%S')}`")
+st.markdown(f"**Grupa strategiczna:** A.Bulsiewicz; J.Jackowski; W.Hussakowski | **Autor aplikacji:** A.Bulsiewicz")
+
 
 zysk_laczny = 0.0
 dane_do_tabeli = []
