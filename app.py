@@ -9,41 +9,6 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
 
-st.markdown(
-    """
-    <style>
-    /* Odblokowujemy ucinanie kontenera */
-    [data-testid="collapsedControl"] {
-        overflow: visible !important;
-    }
-    
-    /* Wyciągamy tekst absolutnie pod strzałkę */
-    [data-testid="collapsedControl"]::after {
-        content: "REBALANS";
-        position: absolute;
-        top: 60px; /* Odległość od góry (pod ikoną) */
-        left: 50%;
-        transform: translateX(-50%); /* Idealne wyśrodkowanie */
-        writing-mode: vertical-rl;
-        text-orientation: upright; /* Proste litery ułożone pionowo */
-        font-size: 12px;
-        font-weight: 700;
-        color: rgba(255, 255, 255, 0.4);
-        letter-spacing: 4px;
-        pointer-events: none; /* Żeby tekst nie blokował klikania w inne rzeczy */
-        white-space: nowrap;
-        transition: color 0.3s;
-    }
-    
-    /* Podświetlenie przy najechaniu */
-    [data-testid="collapsedControl"]:hover::after {
-        color: rgba(0, 255, 0, 0.8);
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 PLIK_USTAWIEN = "portfel.json"
 
 def wczytaj_ustawienia():
@@ -192,9 +157,9 @@ if not historia_portfela.empty:
 
 st.divider()
 col1, col2, col3 = st.columns(3)
-col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.4f} j.p.")
-col2.metric("Zysk / Strata", f"{zysk_laczny:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
-col3.metric("Stan Konta na Weekend", f"{stan_konta_na_zywo:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
+col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.2f} j.p.")
+col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
+col3.metric("Stan Konta", f"{stan_konta_na_zywo:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
 
 st.divider()
 
