@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# Konfiguracja wyglądu strony
-st.set_page_config(page_title="Portfel gr.13", page_icon="📈", layout="wide")
-st.title("📈 Bulsiewicz, Hussakowski, Jackowski")
+# Konfiguracja wyglądu
+st.set_page_config(page_title="GRUPA 13.", page_icon="📈", layout="wide")
+st.title("📈 TWyniki portfela gr.13 LIVE")
 
 # === TWOJA STRATEGIA ===
 kapital_poczatkowy = 100.0
@@ -34,7 +34,6 @@ st.markdown(f"**Tydzień startowy:** `{data_startu_str}` | **Ostatnie dane:** `{
 zysk_laczny = 0.0
 dane_do_tabeli = []
 historia_portfela = pd.DataFrame()
-dane_wykresy_swiecowe = {}
 
 # === POBIERANIE I ŁĄCZENIE DANYCH ===
 for nazwa, dane_poz in pozycje.items():
@@ -45,8 +44,6 @@ for nazwa, dane_poz in pozycje.items():
         hist = pobierz_dane_rynkowe(ticker, data_startu_str)
         
         if not hist.empty:
-            dane_wykresy_swiecowe[nazwa] = hist # Zapisujemy pełne dane do świec
-            
             cena_otwarcia = hist['Open'].iloc[0]
             cena_live = hist['Close'].iloc[-1]
             
@@ -77,6 +74,15 @@ for nazwa, dane_poz in pozycje.items():
     except Exception as e:
         st.error(f"Błąd dla {nazwa}: {e}")
 
+# Łatanie dziur czasowych i obliczanie skumulowanego wyniku
+historia_portfela = historia_portfela.ffill().fillna(0)
+historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
+
+# Przygotowanie danych do warunkowego kolorowania
+# Tworzymy dwie nowe kolumny: jedną dla zysku > 0, drugą dla straty <= 0
+historia_portfela['Zysk_Pos'] = historia_portfela['Zysk_Total'].where(historia_portfela['Zysk_Total'] > 0)
+historia_portfela['Zysk_Neg'] = historia_portfela['Zysk_Total'].where(historia_portfela['Zysk_Total'] <= 0)
+
 stan_konta = kapital_poczatkowy + zysk_laczny
 
 # === METRYKI GŁÓWNE ===
@@ -86,52 +92,44 @@ col1.metric("Kapitał początkowy", f"{kapital_poczatkowy:.4f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 col3.metric("Stan Konta (LIVE)", f"{stan_konta:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 
-# === WYKRES PORTFELA ===
+# === WYKRES SKUMULOWANEGO ZYSKU Z POŚWIATĄ ===
 st.divider()
-st.subheader("📊 Skumulowany wynik portfela (H1)")
+st.subheader("Wykres zyskowności portfela z poświatą (H1)")
 
-if not historia_portfela.empty:
-    historia_portfela = historia_portfela.ffill().fillna(0) # Łatanie dziur czasowych
-    historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
-    
-    fig_portfel = go.Figure()
-    # Kolor linii zależny od tego czy jesteśmy na plusie czy minusie
-    kolor_linii = "green" if historia_portfela['Zysk_Total'].iloc[-1] >= 0 else "red"
-    
-    fig_portfel.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Total'], 
-                                     mode='lines', name='Wynik portfela', line=dict(color=kolor_linii, width=3)))
-    fig_portfel.update_layout(template="plotly_dark", margin=dict(l=20, r=20, t=30, b=20), height=350)
-    st.plotly_chart(fig_portfel, use_container_width=True)
+fig_zysk = go.Figure()
 
-# === WYKRESY ŚWIECOWE (JAPOŃSKIE) ===
-st.divider()
-st.subheader("🕯️ Wykresy świecowe instrumentów (H1)")
+# Efekt poświaty dla zysku (zielona)
+fig_zysk.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Pos'],
+                    mode='lines', line=dict(color='lightgreen', width=10),
+                    opacity=0.3, showlegend=False)) # Grubsza, półprzezroczysta linia pod spodem
 
-kol_wykres1, kol_wykres2 = st.columns(2)
+# Główna linia dla zysku (zielona)
+fig_zysk.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Pos'],
+                    mode='lines', line=dict(color='green', width=3),
+                    name='Zysk > 0'))
 
-# Rysowanie świec dla Złota
-if "Złoto (Gold)" in dane_wykresy_swiecowe:
-    hist_zloto = dane_wykresy_swiecowe["Złoto (Gold)"]
-    fig_zloto = go.Figure(data=[go.Candlestick(x=hist_zloto.index,
-                    open=hist_zloto['Open'], high=hist_zloto['High'],
-                    low=hist_zloto['Low'], close=hist_zloto['Close'])])
-    fig_zloto.update_layout(title="Złoto (SHORT -50)", template="plotly_dark", xaxis_rangeslider_visible=False, height=400)
-    kol_wykres1.plotly_chart(fig_zloto, use_container_width=True)
+# Efekt poświaty dla straty (czerwona)
+fig_zysk.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Neg'],
+                    mode='lines', line=dict(color='salmon', width=10),
+                    opacity=0.3, showlegend=False)) # Grubsza, półprzezroczysta linia pod spodem
 
-# Rysowanie świec dla Rentowności
-if "Rentowności (US10Y)" in dane_wykresy_swiecowe:
-    hist_rent = dane_wykresy_swiecowe["Rentowności (US10Y)"]
-    fig_rent = go.Figure(data=[go.Candlestick(x=hist_rent.index,
-                    open=hist_rent['Open'], high=hist_rent['High'],
-                    low=hist_rent['Low'], close=hist_rent['Close'])])
-    fig_rent.update_layout(title="US10Y Yields (LONG +50)", template="plotly_dark", xaxis_rangeslider_visible=False, height=400)
-    kol_wykres2.plotly_chart(fig_rent, use_container_width=True)
+# Główna linia dla straty (czerwona)
+fig_zysk.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Neg'],
+                    mode='lines', line=dict(color='red', width=3),
+                    name='Strata <= 0'))
+
+fig_zysk.update_layout(template="plotly_dark", xaxis_title="Czas", yaxis_title="Skumulowany Zysk (j.p.)",
+                      margin=dict(l=20, r=20, t=30, b=20), height=400)
+st.plotly_chart(fig_zysk, use_container_width=True)
 
 # === TABELA I KONTROLKI ===
 st.divider()
+st.subheader("Szczegóły otwartych pozycji")
 df = pd.DataFrame(dane_do_tabeli)
 st.dataframe(df, use_container_width=True, hide_index=True)
 
 if st.button("🔄 Wymuś odświeżenie danych z giełdy"):
     st.cache_data.clear()
     st.rerun()
+
+st.caption("System Cache: 5 min. Interwał H1. Wykres z efektem poświaty.")
