@@ -12,27 +12,32 @@ st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
 st.markdown(
     """
     <style>
-    /* Modyfikujemy kontener ze strzałką */
+    /* Odblokowujemy ucinanie kontenera */
     [data-testid="collapsedControl"] {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        overflow: visible !important;
     }
-    /* Dodajemy pionowy tekst pod spodem */
+    
+    /* Wyciągamy tekst absolutnie pod strzałkę */
     [data-testid="collapsedControl"]::after {
-        content: "PANEL REBALANSU";
-        margin-top: 25px;
-        writing-mode: vertical-rl; /* Ustawia tekst pionowo */
-        text-orientation: mixed;
-        font-size: 13px;
+        content: "REBALANS";
+        position: absolute;
+        top: 60px; /* Odległość od góry (pod ikoną) */
+        left: 50%;
+        transform: translateX(-50%); /* Idealne wyśrodkowanie */
+        writing-mode: vertical-rl;
+        text-orientation: upright; /* Proste litery ułożone pionowo */
+        font-size: 12px;
         font-weight: 700;
-        color: rgba(255, 255, 255, 0.4); /* Półprzezroczysty, stylowy szaro-biały */
-        letter-spacing: 3px;
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 4px;
+        pointer-events: none; /* Żeby tekst nie blokował klikania w inne rzeczy */
+        white-space: nowrap;
+        transition: color 0.3s;
     }
-    /* Efekt podświetlenia po najechaniu myszką */
+    
+    /* Podświetlenie przy najechaniu */
     [data-testid="collapsedControl"]:hover::after {
-        color: rgba(0, 255, 0, 0.8); /* Zmienia kolor na neonowy zielony przy najechaniu */
-        transition: 0.3s;
+        color: rgba(0, 255, 0, 0.8);
     }
     </style>
     """,
