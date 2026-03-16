@@ -153,9 +153,9 @@ stan_konta = kapital_poczatkowy + zysk_laczny
 
 st.divider()
 col1, col2, col3 = st.columns(3)
-col1.metric("Kapitał początkowy", f"{kapital_poczatkowy:.2f} j.p.")
-col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.2f} j.p.")
-col3.metric("Stan Konta (LIVE)", f"{stan_konta:.2f} j.p.", f"{zysk_laczny:.2f} j.p.")
+col1.metric("Kapitał początkowy", f"{kapital_poczatkowy:.4f} j.p.")
+col2.metric("Zysk / Strata", f"{zysk_laczny:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
+col3.metric("Stan Konta (LIVE)", f"{stan_konta:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 
 st.divider()
 
