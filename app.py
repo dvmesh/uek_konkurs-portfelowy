@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # === KONFIGURACJA APLIKACJI ===
-st.set_page_config(page_title="Grupa 13. Terminal", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
 
 # === SYSTEM ZAPISU (Baza Danych) ===
 PLIK_USTAWIEN = "portfel.json"
@@ -156,7 +156,6 @@ with st.sidebar:
 
 # === GŁÓWNY INTERFEJS ===
 st.title("📈 Portfel grupy 13. LIVE")
-st.info(f"⏳ **Czas na wysłanie formularza (Niedziela 23:00):** {dni} dni, {godziny} godzin, {minuty} minut")
 
 # Przygotowanie wykresu
 if not historia_portfela.empty:
