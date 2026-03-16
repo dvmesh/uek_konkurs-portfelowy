@@ -4,8 +4,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Konfiguracja wyglądu strony
-st.set_page_config(page_title="Dashboard Konkursowy", page_icon="📈", layout="wide")
-st.title("📈 Terminal Konkursowy LIVE")
+st.set_page_config(page_title="PORTFEL gr.13", page_icon="📈", layout="wide")
+st.title("📈 Status Portfela grupy 13. (Bulsiewicz, Hussakowski, Jackowski) LIVE")
 
 # === TWOJA STRATEGIA ===
 kapital_poczatkowy = 100.0
