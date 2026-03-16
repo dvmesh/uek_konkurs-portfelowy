@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # Konfiguracja wyglądu strony
@@ -19,39 +20,36 @@ dzisiaj = datetime.today()
 ostatni_poniedzialek = dzisiaj - timedelta(days=dzisiaj.weekday())
 data_startu_str = ostatni_poniedzialek.strftime('%Y-%m-%d')
 
-# === ZABEZPIECZENIE (CACHE) + INTERWAŁ GODZINOWY ===
 @st.cache_data(ttl=300)
 def pobierz_dane_rynkowe(ticker, data_startu):
-    # Dodany parametr interval="1h" pobiera świece godzinowe
-    historia = yf.Ticker(ticker).history(start=data_startu, interval="1h")
-    if historia.empty:
-        historia = yf.Ticker(ticker).history(period="5d", interval="1h")
-    
-    # Czyszczenie stref czasowych, żeby wykres Streamlita się nie zaciął
-    if not historia.empty:
-        historia.index = historia.index.tz_localize(None)
-        
-    return historia
+    hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
+    if hist.empty:
+        hist = yf.Ticker(ticker).history(period="5d", interval="1h")
+    if not hist.empty:
+        hist.index = hist.index.tz_localize(None) # Usuwamy strefy czasowe do wykresu
+    return hist
 
-st.markdown(f"**Tydzień startowy:** `{data_startu_str}` | **Stan danych na:** `{datetime.now().strftime('%H:%M:%S')}` | **Interwał:** `1H`")
+st.markdown(f"**Tydzień startowy:** `{data_startu_str}` | **Ostatnie dane:** `{datetime.now().strftime('%H:%M:%S')}`")
 
 zysk_laczny = 0.0
 dane_do_tabeli = []
-dane_historyczne_df = pd.DataFrame()
+historia_portfela = pd.DataFrame()
+dane_wykresy_swiecowe = {}
 
-# === POBIERANIE I PRZETWARZANIE DANYCH ===
+# === POBIERANIE I ŁĄCZENIE DANYCH ===
 for nazwa, dane_poz in pozycje.items():
     ticker = dane_poz["ticker"]
     wielkosc = dane_poz["wielkosc"]
     
     try:
-        historia = pobierz_dane_rynkowe(ticker, data_startu_str)
+        hist = pobierz_dane_rynkowe(ticker, data_startu_str)
         
-        if not historia.empty:
-            cena_otwarcia = historia['Open'].iloc[0]
-            cena_live = historia['Close'].iloc[-1]
+        if not hist.empty:
+            dane_wykresy_swiecowe[nazwa] = hist # Zapisujemy pełne dane do świec
             
-            # Obliczenia na bieżącą chwilę
+            cena_otwarcia = hist['Open'].iloc[0]
+            cena_live = hist['Close'].iloc[-1]
+            
             zmiana_procentowa = (cena_live - cena_otwarcia) / cena_otwarcia
             wynik_pozycji = wielkosc * zmiana_procentowa
             zysk_laczny += wynik_pozycji
@@ -60,60 +58,80 @@ for nazwa, dane_poz in pozycje.items():
                 "Instrument": nazwa,
                 "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
                 "Wielkość": wielkosc,
-                "Cena Startowa": f"{cena_otwarcia:.4f}",
+                "Cena Start": f"{cena_otwarcia:.4f}",
                 "Cena LIVE": f"{cena_live:.4f}",
                 "Wynik (j.p.)": round(wynik_pozycji, 4)
             })
             
-            # Generowanie danych dla wykresu (symulacja kapitału w czasie)
-            historia_zmiany = (historia['Close'] - cena_otwarcia) / cena_otwarcia
+            # Tworzenie bezpiecznej serii danych do wykresu portfela
             kierunek_czynnik = 1 if wielkosc > 0 else -1
+            seria_zysku = ((hist['Close'] - cena_otwarcia) / cena_otwarcia) * abs(wielkosc) * kierunek_czynnik
+            seria_zysku.name = nazwa
             
-            if dane_historyczne_df.empty:
-                dane_historyczne_df = pd.DataFrame(index=historia.index)
-            
-            # Wartość zysku z tej konkretnej pozycji w danym momencie (H1)
-            dane_historyczne_df[nazwa] = historia_zmiany * abs(wielkosc) * kierunek_czynnik
-            
+            if historia_portfela.empty:
+                historia_portfela = pd.DataFrame(seria_zysku)
+            else:
+                # Outer join zapobiega błędom, gdy rynki mają inne godziny otwarcia
+                historia_portfela = historia_portfela.join(seria_zysku, how='outer')
+                
     except Exception as e:
-        st.error(f"Problem z pobraniem danych dla {nazwa}: {e}")
+        st.error(f"Błąd dla {nazwa}: {e}")
 
 stan_konta = kapital_poczatkowy + zysk_laczny
 
-# === INTERFEJS GRAFICZNY (KAFELKI) ===
+# === METRYKI GŁÓWNE ===
 st.divider()
 col1, col2, col3 = st.columns(3)
-
 col1.metric("Kapitał początkowy", f"{kapital_poczatkowy:.4f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 col3.metric("Stan Konta (LIVE)", f"{stan_konta:.4f} j.p.", f"{zysk_laczny:.4f} j.p.")
 
-# === WYKRES WYDAJNOŚCI H1 ===
+# === WYKRES PORTFELA ===
 st.divider()
-st.subheader("Wykres zyskowności (Interwał H1)")
+st.subheader("📊 Skumulowany wynik portfela (H1)")
 
-if not dane_historyczne_df.empty:
-    # Uzupełniamy ewentualne luki w danych (np. gdy jedna giełda była zamknięta, a inna otwarta)
-    dane_historyczne_df = dane_historyczne_df.ffill().fillna(0)
+if not historia_portfela.empty:
+    historia_portfela = historia_portfela.ffill().fillna(0) # Łatanie dziur czasowych
+    historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
     
-    # Dodajemy kolumnę z łącznym wynikiem portfela w danej godzinie
-    dane_historyczne_df['Skumulowany Wynik (j.p.)'] = dane_historyczne_df.sum(axis=1)
+    fig_portfel = go.Figure()
+    # Kolor linii zależny od tego czy jesteśmy na plusie czy minusie
+    kolor_linii = "green" if historia_portfela['Zysk_Total'].iloc[-1] >= 0 else "red"
     
-    # Rysujemy na wykresie tylko zieloną/czerwoną linię łącznego zysku
-    st.line_chart(dane_historyczne_df['Skumulowany Wynik (j.p.)'])
+    fig_portfel.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Total'], 
+                                     mode='lines', name='Wynik portfela', line=dict(color=kolor_linii, width=3)))
+    fig_portfel.update_layout(template="plotly_dark", margin=dict(l=20, r=20, t=30, b=20), height=350)
+    st.plotly_chart(fig_portfel, use_container_width=True)
 
+# === WYKRESY ŚWIECOWE (JAPOŃSKIE) ===
 st.divider()
+st.subheader("🕯️ Wykresy świecowe instrumentów (H1)")
 
-# === TABELA SZCZEGÓŁÓW ===
-st.subheader("Szczegóły otwartych pozycji")
+kol_wykres1, kol_wykres2 = st.columns(2)
+
+# Rysowanie świec dla Złota
+if "Złoto (Gold)" in dane_wykresy_swiecowe:
+    hist_zloto = dane_wykresy_swiecowe["Złoto (Gold)"]
+    fig_zloto = go.Figure(data=[go.Candlestick(x=hist_zloto.index,
+                    open=hist_zloto['Open'], high=hist_zloto['High'],
+                    low=hist_zloto['Low'], close=hist_zloto['Close'])])
+    fig_zloto.update_layout(title="Złoto (SHORT -50)", template="plotly_dark", xaxis_rangeslider_visible=False, height=400)
+    kol_wykres1.plotly_chart(fig_zloto, use_container_width=True)
+
+# Rysowanie świec dla Rentowności
+if "Rentowności (US10Y)" in dane_wykresy_swiecowe:
+    hist_rent = dane_wykresy_swiecowe["Rentowności (US10Y)"]
+    fig_rent = go.Figure(data=[go.Candlestick(x=hist_rent.index,
+                    open=hist_rent['Open'], high=hist_rent['High'],
+                    low=hist_rent['Low'], close=hist_rent['Close'])])
+    fig_rent.update_layout(title="US10Y Yields (LONG +50)", template="plotly_dark", xaxis_rangeslider_visible=False, height=400)
+    kol_wykres2.plotly_chart(fig_rent, use_container_width=True)
+
+# === TABELA I KONTROLKI ===
+st.divider()
 df = pd.DataFrame(dane_do_tabeli)
 st.dataframe(df, use_container_width=True, hide_index=True)
 
-st.divider()
-
-# Przycisk odświeżania czyszczący pamięć podręczną
-if st.button("🔄 Wymuś odświeżenie danych"):
+if st.button("🔄 Wymuś odświeżenie danych z giełdy"):
     st.cache_data.clear()
     st.rerun()
-
-st.caption("System Cache: 5 min. Wykres oparty na interwale 1-godzinnym (H1).")
