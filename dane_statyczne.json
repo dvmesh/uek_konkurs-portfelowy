@@ -1,0 +1,44 @@
+{
+  "TICKERY": {
+    "S&P 500": "^GSPC",
+    "US10Y Yield": "^TNX",
+    "Złoto (Gold)": "GC=F",
+    "EUR/USD": "EURUSD=X"
+  },
+  "MAPOWANIE_PDF": {
+    "SPX": "S&P 500",
+    "GOLD": "Złoto (Gold)",
+    "RENT": "US10Y Yield",
+    "EURUSD": "EUR/USD"
+  },
+  "DANE_GRUP": {
+    "Grupa 1": {"SPX": -25, "GOLD": -25, "RENT": 0, "EURUSD": -50},
+    "Grupa 2": {"SPX": -50, "GOLD": 30, "RENT": 20, "EURUSD": 0},
+    "Grupa 3": {"SPX": -20, "GOLD": -10, "RENT": 45, "EURUSD": -25},
+    "Grupa 4": {"SPX": -35, "GOLD": 0, "RENT": 45, "EURUSD": -20},
+    "Grupa 5": {"SPX": -35, "GOLD": 35, "RENT": -15, "EURUSD": 15},
+    "Grupa 6": {"SPX": 70, "GOLD": 0, "RENT": 0, "EURUSD": 30},
+    "Grupa 7": {"SPX": -30, "GOLD": -30, "RENT": 0, "EURUSD": -40},
+    "Grupa 8": {"SPX": 40, "GOLD": 20, "RENT": 20, "EURUSD": 20},
+    "Grupa 9": {"SPX": 0, "GOLD": 0, "RENT": 20, "EURUSD": 0},
+    "Grupa 10": {"SPX": 0, "GOLD": -30, "RENT": 40, "EURUSD": -30},
+    "Grupa 11": {"SPX": 25, "GOLD": -25, "RENT": 25, "EURUSD": -25},
+    "Grupa 12": {"SPX": -60, "GOLD": 0, "RENT": 40, "EURUSD": 0},
+    "Grupa 14": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": 0},
+    "Grupa 15": {"SPX": 10, "GOLD": 40, "RENT": 50, "EURUSD": 0},
+    "Grupa A": {"SPX": -30, "GOLD": 70, "RENT": 0, "EURUSD": 0},
+    "Grupa B": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": -50},
+    "Grupa C": {"SPX": -30, "GOLD": -40, "RENT": -30, "EURUSD": 0},
+    "Grupa D": {"SPX": 40, "GOLD": 60, "RENT": 0, "EURUSD": 0},
+    "Grupa E": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
+    "Grupa F": {"SPX": -40, "GOLD": -25, "RENT": -10, "EURUSD": 25},
+    "Grupa G": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa H": {"SPX": 70, "GOLD": 15, "RENT": 0, "EURUSD": 0},
+    "Grupa I": {"SPX": -50, "GOLD": 50, "RENT": 0, "EURUSD": 0},
+    "Grupa J": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
+    "Grupa K": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa L": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa M": {"SPX": -40, "GOLD": -40, "RENT": 0, "EURUSD": 0},
+    "Grupa N": {"SPX": 100, "GOLD": 0, "RENT": 0, "EURUSD": 0}
+  }
+}
