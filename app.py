@@ -81,7 +81,7 @@ with st.spinner('Pobieram dane z giełdy...'):
                 zmiana_procentowa = (cena_live - cena_otwarcia) / cena_otwarcia
                 wynik_pozycji = wielkosc * zmiana_procentowa
                 zysk_laczny += wynik_pozycji
-                zmiana_proc_total = zmiana_procentowa
+                zmiana_proc_total = zmiana_procentowa*100
                 
                 dane_do_tabeli.append({
                     "Instrument": nazwa,
