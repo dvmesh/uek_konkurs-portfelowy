@@ -27,7 +27,6 @@ def zapisz_ustawienia(ustawienia):
 ustawienia = wczytaj_ustawienia()
 kapital_poczatkowy = ustawienia["kapital_startowy"]
 pozycje_z_panelu = ustawienia["pozycje"]
-zmiana_proc = kapital_poczatkowy/
 
 TICKERY = {
     "S&P 500": "^GSPC",
