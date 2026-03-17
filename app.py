@@ -39,6 +39,38 @@ TICKERY = {
     "EUR/USD": "EURUSD=X"
 }
 
+# === DANE KONKURENCJI Z PDF ===
+DANE_GRUP = {
+    "Grupa 1": {"SPX": -25, "GOLD": -25, "RENT": 0, "EURUSD": -50},
+    "Grupa 2": {"SPX": -50, "GOLD": 30, "RENT": 20, "EURUSD": 0},
+    "Grupa 3": {"SPX": -20, "GOLD": -10, "RENT": 45, "EURUSD": -25},
+    "Grupa 4": {"SPX": -35, "GOLD": 0, "RENT": 45, "EURUSD": -20},
+    "Grupa 5": {"SPX": -35, "GOLD": 35, "RENT": -15, "EURUSD": 15},
+    "Grupa 6": {"SPX": 70, "GOLD": 0, "RENT": 0, "EURUSD": 30},
+    "Grupa 7": {"SPX": -30, "GOLD": -30, "RENT": 0, "EURUSD": -40},
+    "Grupa 8": {"SPX": 40, "GOLD": 20, "RENT": 20, "EURUSD": 20},
+    "Grupa 9": {"SPX": 0, "GOLD": 0, "RENT": 20, "EURUSD": 0},
+    "Grupa 10": {"SPX": 0, "GOLD": -30, "RENT": 40, "EURUSD": -30},
+    "Grupa 11": {"SPX": 25, "GOLD": -25, "RENT": 25, "EURUSD": -25},
+    "Grupa 12": {"SPX": -60, "GOLD": 0, "RENT": 40, "EURUSD": 0},
+    "Grupa 14": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": 0},
+    "Grupa 15": {"SPX": 10, "GOLD": 40, "RENT": 50, "EURUSD": 0},
+    "Grupa A": {"SPX": -30, "GOLD": 70, "RENT": 0, "EURUSD": 0},
+    "Grupa B": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": -50},
+    "Grupa C": {"SPX": -30, "GOLD": -40, "RENT": -30, "EURUSD": 0},
+    "Grupa D": {"SPX": 40, "GOLD": 60, "RENT": 0, "EURUSD": 0},
+    "Grupa E": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
+    "Grupa F": {"SPX": -40, "GOLD": -25, "RENT": -10, "EURUSD": 25},
+    "Grupa G": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa H": {"SPX": 70, "GOLD": 15, "RENT": 0, "EURUSD": 0},
+    "Grupa I": {"SPX": -50, "GOLD": 50, "RENT": 0, "EURUSD": 0},
+    "Grupa J": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
+    "Grupa K": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa L": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
+    "Grupa M": {"SPX": -40, "GOLD": -40, "RENT": 0, "EURUSD": 0},
+    "Grupa N": {"SPX": 100, "GOLD": 0, "RENT": 0, "EURUSD": 0}
+}
+
 # === LOGIKA CZASU ===
 teraz = datetime.now()
 ostatni_poniedzialek = teraz - timedelta(days=teraz.weekday())
@@ -68,39 +100,65 @@ def pobierz_dane_rynkowe(ticker, data_startu):
 zysk_laczny = 0.0
 dane_do_tabeli = []
 historia_portfela = pd.DataFrame()
+zmiany_rynkowe = {} # Przechowuje zmiany proc. dla rankingu
 
 # === POBIERANIE DANYCH ===
-with st.spinner('Aktualizacja danych rynkowych...'):
-    cache_hist = {}
-    for nazwa, wielkosc in pozycje_z_panelu.items():
-        if wielkosc == 0: continue
-        ticker = TICKERY[nazwa]
+with st.spinner('Aktualizacja danych rynkowych i rankingu...'):
+    for nazwa, ticker in TICKERY.items():
         hist = pobierz_dane_rynkowe(ticker, data_startu_str)
         if not hist.empty:
             cena_otw = hist['Open'].iloc[0]
             cena_live = hist['Close'].iloc[-1]
             zmiana_proc = (cena_live - cena_otw) / cena_otw
-            wynik_poz = wielkosc * zmiana_proc
-            zysk_laczny += wynik_poz
+            zmiany_rynkowe[nazwa] = zmiana_proc
             
-            dane_do_tabeli.append({
-                "Instrument": nazwa,
-                "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
-                "Wielkość (j.p.)": wielkosc,
-                "Cena Start": f"{cena_otw:.4f}",
-                "Cena LIVE": f"{cena_live:.4f}",
-                "Wynik": round(wynik_poz, 4)
-            })
-            
-            seria = ((hist['Close'] - cena_otw) / cena_otw) * abs(wielkosc) * (1 if wielkosc > 0 else -1)
-            seria.name = nazwa
-            if historia_portfela.empty:
-                historia_portfela = pd.DataFrame(seria)
-            else:
-                historia_portfela = historia_portfela.join(seria, how='outer')
+            # Jeśli macie to w portfelu, licz statystyki i wykres
+            wielkosc = pozycje_z_panelu.get(nazwa, 0.0)
+            if wielkosc != 0:
+                wynik_poz = wielkosc * zmiana_proc
+                zysk_laczny += wynik_poz
+                
+                dane_do_tabeli.append({
+                    "Instrument": nazwa,
+                    "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
+                    "Wielkość (j.p.)": wielkosc,
+                    "Cena Start": f"{cena_otw:.4f}",
+                    "Cena LIVE": f"{cena_live:.4f}",
+                    "Wynik": round(wynik_poz, 4)
+                })
+                
+                seria = ((hist['Close'] - cena_otw) / cena_otw) * abs(wielkosc) * (1 if wielkosc > 0 else -1)
+                seria.name = nazwa
+                if historia_portfela.empty:
+                    historia_portfela = pd.DataFrame(seria)
+                else:
+                    historia_portfela = historia_portfela.join(seria, how='outer')
 
 stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
 zmiana_proc_total = (zysk_laczny / kapital_poczatkowy * 100) if kapital_poczatkowy != 0 else 0
+
+# === OBLICZANIE RANKINGU ===
+wyniki_rankingu = []
+wyniki_rankingu.append({"Grupa": "GRUPA 13 (MY)", "Wynik": stan_konta_na_zywo})
+
+for grupa, pozycje in DANE_GRUP.items():
+    wynik_grupy = 100.0 # W PDF wszyscy zaczynają ze 100
+    for inst, waga in pozycje.items():
+        klucz_rynkowy = None
+        if inst == "SPX": klucz_rynkowy = "S&P 500"
+        elif inst == "GOLD": klucz_rynkowy = "Złoto (Gold)"
+        elif inst == "RENT": klucz_rynkowy = "US10Y Yield"
+        elif inst == "EURUSD": klucz_rynkowy = "EUR/USD"
+        
+        if klucz_rynkowy and klucz_rynkowy in zmiany_rynkowe:
+            wynik_grupy += waga * zmiany_rynkowe[klucz_rynkowy]
+            
+    wyniki_rankingu.append({"Grupa": grupa, "Wynik": round(wynik_grupy, 4)})
+
+# Sortowanie DataFrame
+ranking_df = pd.DataFrame(wyniki_rankingu).sort_values(by="Wynik", ascending=False).reset_index(drop=True)
+ranking_df.index += 1
+moje_miejsce = ranking_df[ranking_df['Grupa'] == "GRUPA 13 (MY)"].index[0]
 
 # === SIDEBAR ===
 with st.sidebar:
@@ -133,31 +191,37 @@ with st.sidebar:
 # === MAIN UI ===
 st.title("📈 Portfel grupy 13. LIVE")
 
-# Karty statystyk (Material UI)
+# Karty statystyk (Material UI) - 5 KART dzięki xs=True
 with elements("dashboard_stats"):
     with mui.Grid(container=True, spacing=2):
         # Karta 1
-        with mui.Grid(item=True, xs=3):
-            with mui.Paper(sx={"padding": "20px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
+        with mui.Grid(item=True, xs=True):
+            with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Kapitał Startowy", variant="overline", sx={"color": "#aaa"})
                 mui.Typography(f"{kapital_poczatkowy:.2f} j.p.", variant="h5", sx={"color": "#00ff00", "fontWeight": "bold"})
         # Karta 2
-        with mui.Grid(item=True, xs=3):
-            with mui.Paper(sx={"padding": "20px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
+        with mui.Grid(item=True, xs=True):
+            with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Zysk / Strata", variant="overline", sx={"color": "#aaa"})
                 color = "#00ff00" if zysk_laczny >= 0 else "#ff0000"
                 mui.Typography(f"{zysk_laczny:+.2f} j.p.", variant="h5", sx={"color": color, "fontWeight": "bold"})
         # Karta 3
-        with mui.Grid(item=True, xs=3):
-            with mui.Paper(sx={"padding": "20px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
+        with mui.Grid(item=True, xs=True):
+            with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Stan Konta", variant="overline", sx={"color": "#aaa"})
                 mui.Typography(f"{stan_konta_na_zywo:.2f} j.p.", variant="h5", sx={"fontWeight": "bold"})
         # Karta 4
-        with mui.Grid(item=True, xs=3):
-            with mui.Paper(sx={"padding": "20px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
+        with mui.Grid(item=True, xs=True):
+            with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Wynik %", variant="overline", sx={"color": "#aaa"})
                 color = "#00ff00" if zmiana_proc_total >= 0 else "#ff0000"
                 mui.Typography(f"{zmiana_proc_total:+.2f}%", variant="h5", sx={"color": color, "fontWeight": "bold"})
+        # Karta 5 (RANKING)
+        with mui.Grid(item=True, xs=True):
+            with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
+                mui.Typography("Miejsce", variant="overline", sx={"color": "#FFD700"})
+                rank_color = "#FFD700" if moje_miejsce <= 3 else "#fff" # Złoty dla podium
+                mui.Typography(f"{moje_miejsce} / {len(ranking_df)}", variant="h5", sx={"color": rank_color, "fontWeight": "bold"})
 
 st.divider()
 
@@ -175,12 +239,19 @@ if not historia_portfela.empty:
                       yaxis=dict(zeroline=True, zerolinecolor='gray'))
     st.plotly_chart(fig, use_container_width=True)
 
-# Tabela
-st.subheader("Otwarte pozycje")
-if dane_do_tabeli:
-    st.dataframe(pd.DataFrame(dane_do_tabeli), use_container_width=True, hide_index=True)
-else:
-    st.info("Portfel jest obecnie pusty.")
+# Tabele pod spodem
+col_left, col_right = st.columns([1, 1])
+
+with col_left:
+    st.subheader("Otwarte pozycje")
+    if dane_do_tabeli:
+        st.dataframe(pd.DataFrame(dane_do_tabeli), use_container_width=True, hide_index=True)
+    else:
+        st.info("Portfel jest obecnie pusty.")
+
+with col_right:
+    st.subheader("🏆 Ranking LIVE (TOP 10)")
+    st.dataframe(ranking_df.head(10), use_container_width=True, hide_index=False)
 
 st.caption(f"Ostatnie odświeżenie: {teraz.strftime('%H:%M:%S')} | Auto-odświeżanie: 60s")
 time.sleep(60)
