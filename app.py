@@ -247,35 +247,90 @@ with elements("dashboard_stats"):
 
 st.divider()
 
-# Wykres
+# === WYKRES ===
 fig = go.Figure()
 
 if not historia_portfela.empty:
     historia_portfela = historia_portfela.bfill().ffill().fillna(0)
     total_my = historia_portfela.sum(axis=1)
     
+    # Rysowanie tła (poświaty)
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(lower=0), fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.1)', line=dict(width=0), showlegend=False))
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(upper=0), fill='tozeroy', fillcolor='rgba(255, 0, 0, 0.1)', line=dict(width=0), showlegend=False))
+    
+    # Główna linia Waszego Portfela
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='white', width=3), name='Nasz Portfel'))
+
+    # ADNOTACJA: Kropka i tekst dla Waszego portfela
+    ostatni_czas_my = total_my.index[-1]
+    ostatnia_wartosc_my = total_my.iloc[-1]
+    kolor_tekstu_my = "#00ff00" if ostatnia_wartosc_my >= 0 else "#ff0000"
+    
+    fig.add_annotation(
+        x=ostatni_czas_my,
+        y=ostatnia_wartosc_my,
+        text=f"<b>{ostatnia_wartosc_my:+.2f} j.p.</b>",
+        showarrow=True,
+        arrowhead=0, # Brak typowej strzałki, zrobimy tylko linię i punkt
+        arrowwidth=1,
+        arrowcolor="white",
+        ax=40, # Przesunięcie w poziomie (w prawo)
+        ay=0,  # Przesunięcie w pionie (na równo)
+        font=dict(size=14, color=kolor_tekstu_my),
+        bgcolor="rgba(30, 30, 30, 0.8)", # Ciemne tło dla lepszej czytelności
+        bordercolor=kolor_tekstu_my,
+        borderwidth=1,
+        borderpad=4
+    )
+    # Dodanie wyraźnej kropki na końcu linii
+    fig.add_trace(go.Scatter(
+        x=[ostatni_czas_my], y=[ostatnia_wartosc_my],
+        mode='markers', marker=dict(color='white', size=8, line=dict(color=kolor_tekstu_my, width=2)),
+        showlegend=False, hoverinfo='skip'
+    ))
 
 if not historia_sredniej.empty:
     historia_sredniej = historia_sredniej.bfill().ffill().fillna(0)
     total_avg = historia_sredniej.sum(axis=1)
     
-    # Dodajemy linię średniej (przerywana, złota)
+    # Linia Benchmarku (Średnia)
     fig.add_trace(go.Scatter(
         x=total_avg.index, 
         y=total_avg, 
         line=dict(color='rgba(255, 215, 0, 0.7)', width=2, dash='dot'), 
-        name='Średnia wszystkich grup'
+        name='Średnia Konkursu'
+    ))
+    
+    # ADNOTACJA: Kropka i tekst dla Benchmarku
+    ostatni_czas_avg = total_avg.index[-1]
+    ostatnia_wartosc_avg = total_avg.iloc[-1]
+    
+    fig.add_annotation(
+        x=ostatni_czas_avg,
+        y=ostatnia_wartosc_avg,
+        text=f"Średnia: {ostatnia_wartosc_avg:+.2f}",
+        showarrow=True,
+        arrowhead=0,
+        arrowwidth=1,
+        arrowcolor="gold",
+        ax=45,
+        ay=-25, # Lekko do góry, żeby nie nakładało się na Wasz wynik
+        font=dict(size=11, color="gold"),
+        bgcolor="rgba(0, 0, 0, 0.5)"
+    )
+    fig.add_trace(go.Scatter(
+        x=[ostatni_czas_avg], y=[ostatnia_wartosc_avg],
+        mode='markers', marker=dict(color='gold', size=6),
+        showlegend=False, hoverinfo='skip'
     ))
 
+# Aktualizacja układu (zrobimy trochę więcej miejsca po prawej stronie na te napisy)
 fig.update_layout(
     template="plotly_dark", 
     height=450, 
-    margin=dict(l=10, r=10, t=10, b=10), 
+    margin=dict(l=10, r=80, t=10, b=10), # Zwiększono prawy margines (r=80)
     yaxis=dict(zeroline=True, zerolinecolor='gray'),
-    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01) # Legenda w lewym górnym rogu
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
 )
 st.plotly_chart(fig, use_container_width=True)
 
