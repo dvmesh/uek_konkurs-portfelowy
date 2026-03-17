@@ -136,7 +136,7 @@ for klucz_pdf, nazwa_inst in MAPOWANIE_PDF.items():
 # === MAX DRAWDOWN ===
 max_dd_proc = 0.0
 if not historia_portfela.empty:
-    hp_czysta = historia_portfela.bfill().ffill().fillna(0)
+    hp_czysta = historia_portfela.ffill().fillna(0)
     wartosc_konta_historia = kapital_poczatkowy + hp_czysta.sum(axis=1)
     szczyt = wartosc_konta_historia.cummax()
     max_dd_proc = ((wartosc_konta_historia - szczyt) / szczyt * 100).min()
