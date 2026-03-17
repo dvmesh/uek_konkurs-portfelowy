@@ -308,7 +308,7 @@ if not historia_sredniej.empty:
     fig.add_annotation(
         x=ostatni_czas_avg,
         y=ostatnia_wartosc_avg,
-        text=f"Średnia: {ostatnia_wartosc_avg:+.2f} j.p.",
+        text=f"{ostatnia_wartosc_avg:+.2f} j.p.",
         showarrow=True,
         arrowhead=0,
         arrowwidth=1,
