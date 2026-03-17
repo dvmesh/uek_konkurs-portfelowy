@@ -157,14 +157,6 @@ for nazwa_inst in TICKERY.keys():
         seria_rynek = wszystkie_historie_zmian[nazwa_inst] * 25.0
         historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
 
-# === MAX DRAWDOWN ===
-max_dd_proc = 0.0
-if not historia_portfela.empty:
-    hp_czysta = historia_portfela.ffill().fillna(0)
-    wartosc_konta_historia = kapital_poczatkowy + hp_czysta.sum(axis=1)
-    szczyt = wartosc_konta_historia.cummax()
-    max_dd_proc = ((wartosc_konta_historia - szczyt) / szczyt * 100).min()
-
 # === RANKING ===
 wyniki_rankingu = []
 for g_nazwa, g_dane in aktywne_portfele.items():
@@ -224,7 +216,6 @@ with elements("stats"):
             ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
             ("Konto", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
             ("Wynik", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
-            ("MDD", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
             ("Miejsce", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
         ]
         for lab, val, col in karty:
