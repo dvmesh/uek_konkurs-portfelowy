@@ -157,7 +157,7 @@ if not historia_portfela.empty:
     zysk_neg = historia_portfela['Zysk_Total'].clip(upper=0) 
 
 st.divider()
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.2f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
 col3.metric("Stan Konta", f"{stan_konta_na_zywo:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
