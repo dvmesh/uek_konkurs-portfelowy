@@ -91,8 +91,16 @@ def pobierz_dane_rynkowe(ticker, data_startu):
         hist = ticker_obj.history(start=data_startu, interval="1h")
         if hist.empty:
             hist = ticker_obj.history(period="5d", interval="1h")
+        
         if not hist.empty:
+            # 1. Jeśli Yahoo zwróciło strefę czasową (NY, GMT itd.)...
+            if hist.index.tz is not None:
+                # 2. Najpierw konwertujemy wszystko na czas polski!
+                hist.index = hist.index.tz_convert('Europe/Warsaw')
+            
+            # 3. Dopiero gdy wszystko jest w naszym czasie, usuwamy znacznik dla Plotly
             hist.index = hist.index.tz_localize(None)
+            
         return hist
     except:
         return pd.DataFrame()
