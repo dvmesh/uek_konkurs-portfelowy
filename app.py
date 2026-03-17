@@ -1,4 +1,5 @@
 import time
+from streamlit_elements import elements, mui
 import json
 import os
 import streamlit as st
@@ -155,11 +156,24 @@ if not historia_portfela.empty:
     zysk_neg = historia_portfela['Zysk_Total'].clip(upper=0) 
 
 st.divider()
+
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.2f} j.p.")
-col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
-col3.metric("Stan Konta", f"{stan_konta_na_zywo:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
-col4.metric("Zmiana Procentowa", f"{zmiana_proc_total:.2f}%", f"{zmiana_proc_total:.5f}%")
+with col1:
+    with elements("kapital_startowy"):
+        mui.Typography("Kapitał na początku tyg.", variant="h6")
+        mui.Typography(f"{kapital_poczatkowy:.2f} j.p.", variant="h4", sx={"color": "#00ff00"})
+with col2:
+    with elements("zysk_strata"):
+        mui.Typography("Zysk / Strata", variant="h6")
+        mui.Typography(f"{zysk_laczny:.2f} j.p.", variant="h4", sx={"color": "#00ff00" if zysk_laczny >= 0 else "#ff0000"})
+with col3:
+    with elements("stan_konta"):
+        mui.Typography("Stan Konta", variant="h6")
+        mui.Typography(f"{stan_konta_na_zywo:.2f} j.p.", variant="h4", sx={"color": "#00ff00" if stan_konta_na_zywo >= 0 else "#ff0000"})
+with col4:
+    with elements("zmiana_proc"):
+        mui.Typography("Zmiana Procentowa", variant="h6")
+        mui.Typography(f"{zmiana_proc_total:.2f}%", variant="h4", sx={"color": "#00ff00" if zmiana_proc_total >= 0 else "#ff0000"})
 
 st.divider()
 
