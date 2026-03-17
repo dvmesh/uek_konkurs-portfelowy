@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from streamlit_elements import elements, mui, html
 
 # === KONFIGURACJA ===
-st.set_page_config(page_title="Grupa 13 - Terminal PRO", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Aplikacja portfelowa", page_icon="🚀", layout="wide")
 
 # === KOLORYSTYKA (Nowoczesna, stonowana) ===
 KOLOR_ZYSK = "#4ade80"       # Szmaragdowy (Muted Green)
@@ -210,7 +210,7 @@ with st.sidebar:
                 st.rerun()
 
 # === GŁÓWNY INTERFEJS ===
-st.title("📈 Portfel Grupy 13. [Terminal PRO]")
+st.title("Analiza Portfela - Grupa 13")
 
 with elements("stats"):
     with mui.Grid(container=True, spacing=2):
@@ -274,7 +274,7 @@ st.plotly_chart(fig, use_container_width=True)
 col_left, col_right = st.columns([1.2, 1])
 
 with col_left:
-    st.subheader("🩻 Rentgen Portfela")
+    st.subheader("Pozycje")
     if dane_do_tabeli:
         df_poz = pd.DataFrame(dane_do_tabeli)
         st.dataframe(
@@ -289,12 +289,12 @@ with col_left:
     else: st.info("Brak pozycji.")
 
 with col_right:
-    st.subheader("🏆 Ranking LIVE")
+    st.subheader("Ranking Konkursu")
     st.dataframe(ranking_df.head(10), use_container_width=True, hide_index=False)
 
 # === RADAR TŁUMU (SENTYMENT) ===
 st.divider()
-st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
+st.subheader("Analiza Sentymentu Grup")
 
 sentyment = {"S&P 500": {"LONG": 0, "SHORT": 0}, "Złoto (Gold)": {"LONG": 0, "SHORT": 0}, "US10Y Yield": {"LONG": 0, "SHORT": 0}, "EUR/USD": {"LONG": 0, "SHORT": 0}}
 for obs in wszystkie_grupy:
