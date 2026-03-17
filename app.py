@@ -121,6 +121,14 @@ for klucz_pdf, nazwa_inst in MAPOWANIE_PDF.items():
         seria_avg = wszystkie_historie_zmian[nazwa_inst] * abs(srednia_waga) * (1 if srednia_waga > 0 else -1)
         historia_sredniej = pd.DataFrame(seria_avg) if historia_sredniej.empty else historia_sredniej.join(seria_avg.rename(nazwa_inst), how='outer')
 
+# === HISTORIA RYNKU (25% w każdy instrument) ===
+historia_rynku = pd.DataFrame()
+for nazwa_inst in TICKERY.keys():
+    if nazwa_inst in wszystkie_historie_zmian:
+        # Symulacja: równe 25 j.p. w pozycję LONG na każdym instrumencie
+        seria_rynek = wszystkie_historie_zmian[nazwa_inst] * 25.0
+        historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
+
 # === MAX DRAWDOWN ===
 max_dd_proc = 0.0
 if not historia_portfela.empty:
@@ -204,6 +212,17 @@ if not historia_sredniej.empty:
     ost_y_a = total_avg.iloc[-1]
     fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_avg.index[-1]], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
+
+if not historia_rynku.empty:
+    total_rynek = historia_rynku.ffill().fillna(0).sum(axis=1)
+    
+    # Linia Rynku (Jasnoniebieska, przerywana)
+    fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Czysty Rynek (4x25)'))
+    
+    ost_y_r = total_rynek.iloc[-1]
+    # ay=25 przesuwa napis w dół, żeby nie nakładał się na inne!
+    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=45, ay=25, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_trace(go.Scatter(x=[total_rynek.index[-1]], y=[ost_y_r], mode='markers', marker=dict(color="#38bdf8", size=5), showlegend=False))
 
 fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 st.plotly_chart(fig, use_container_width=True)
