@@ -10,28 +10,6 @@ from streamlit_elements import elements, mui, html
 
 st.set_page_config(page_title="Grupa 13", page_icon="📈", layout="wide")
 
-st.markdown("""
-    <style>
-    [data-testid="collapsedControl"] {
-        overflow: visible !important;
-    }
-    [data-testid="collapsedControl"]::after {
-        content: "REBALANS";
-        position: absolute;
-        top: 60px;
-        left: 50%;
-        transform: translateX(-50%);
-        writing-mode: vertical-rl;
-        text-orientation: upright;
-        font-size: 12px;
-        font-weight: 900;
-        color: rgba(255, 255, 255, 0.4);
-        letter-spacing: 4px;
-        pointer-events: none;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 PLIK_USTAWIEN = "portfel.json"
 
 def wczytaj_ustawienia():
