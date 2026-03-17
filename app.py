@@ -27,6 +27,7 @@ def zapisz_ustawienia(ustawienia):
 ustawienia = wczytaj_ustawienia()
 kapital_poczatkowy = ustawienia["kapital_startowy"]
 pozycje_z_panelu = ustawienia["pozycje"]
+zmiana_proc = kapital_poczatkowy/
 
 TICKERY = {
     "S&P 500": "^GSPC",
@@ -81,6 +82,7 @@ with st.spinner('Pobieram dane z giełdy...'):
                 zmiana_procentowa = (cena_live - cena_otwarcia) / cena_otwarcia
                 wynik_pozycji = wielkosc * zmiana_procentowa
                 zysk_laczny += wynik_pozycji
+                zmiana_proc_total = zmiana_procentowa
                 
                 dane_do_tabeli.append({
                     "Instrument": nazwa,
@@ -160,7 +162,7 @@ col1, col2, col3 = st.columns(3)
 col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.2f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
 col3.metric("Stan Konta", f"{stan_konta_na_zywo:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
-col4.metric("Zmiana Procentowa", f"{(kapital_poczatkowy/zysk_laczny)*100} %")
+col4.metric("Zmiana Procentowa", f"{zmiana_proc_total} %")
 
 st.divider()
 
