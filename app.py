@@ -18,43 +18,6 @@ KOLOR_NEUTRAL = "#9ca3af"
 KOLOR_ZOLTY = "#fbbf24"
 KOLOR_TLA_KART = "#262730"
 
-st.markdown("""
-    <style>
-    /* 1. Wyłączamy "nożyczki" w głównym nagłówku Streamlita i wyciągamy go na wierzch */
-    header[data-testid="stHeader"] {
-        overflow: visible !important;
-        z-index: 99999 !important;
-    }
-    
-    /* 2. Odblokowujemy kontener samej strzałki */
-    [data-testid="collapsedControl"] { 
-        overflow: visible !important; 
-    }
-    
-    /* 3. Wyświetlamy pionowy napis pod strzałką */
-    [data-testid="collapsedControl"]::after {
-        content: "REBALANS"; 
-        position: absolute; 
-        top: 50px; 
-        left: 15px; /* Sztywne odsunięcie od lewej krawędzi */
-        writing-mode: vertical-rl; 
-        text-orientation: upright;
-        font-size: 11px; 
-        font-weight: 800; 
-        color: rgba(255, 255, 255, 0.4);
-        letter-spacing: 4px; 
-        pointer-events: none; /* Żeby nie blokowało klikania wokół */
-        z-index: 99999 !important;
-    }
-    
-    /* Podświetlenie na złoto gdy najedziesz myszką w te okolice */
-    [data-testid="collapsedControl"]:hover::after {
-        color: #fbbf24; 
-        transition: 0.3s;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 # === SYSTEM ZAPISU I DANYCH (ZOPTYMALIZOWANY) ===
 PLIK_USTAWIEN = "portfel.json"
 
