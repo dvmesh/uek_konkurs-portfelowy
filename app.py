@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from streamlit_elements import elements, mui
 
 # === KONFIGURACJA UI ===
-st.set_page_config(page_title="Terminal Konkursowy PRO", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="KONKURS PORTFELOWY", page_icon="🚀", layout="wide")
 
 KOLOR_ZYSK = "#4ade80"
 KOLOR_STRATA = "#f87171"
@@ -18,20 +18,6 @@ KOLOR_NEUTRAL = "#9ca3af"
 KOLOR_ZOLTY = "#fbbf24"
 KOLOR_RYNEK = "#38bdf8"
 KOLOR_TLA_KART = "#262730"
-
-st.markdown("""
-    <style>
-    header[data-testid="stHeader"] { overflow: visible !important; z-index: 99999 !important; }
-    [data-testid="collapsedControl"] { overflow: visible !important; }
-    [data-testid="collapsedControl"]::after {
-        content: "REBALANS"; position: absolute; top: 50px; left: 15px; 
-        writing-mode: vertical-rl; text-orientation: upright;
-        font-size: 11px; font-weight: 800; color: rgba(255, 255, 255, 0.4);
-        letter-spacing: 4px; pointer-events: none; z-index: 99999 !important;
-    }
-    [data-testid="collapsedControl"]:hover::after { color: #fbbf24; transition: 0.3s; }
-    </style>
-    """, unsafe_allow_html=True)
 
 # === SYSTEM ZAPISU I DANYCH ===
 PLIK_USTAWIEN = "portfel.json"
@@ -85,7 +71,7 @@ for g_nazwa, g_dane in ustawienia.items():
 # === GŁÓWNE UI - WYBÓR GRUPY NA SAMEJ GÓRZE ===
 col_t, col_w = st.columns([2, 1])
 with col_t:
-    st.title("📊 Terminal Portfelowy")
+    st.title("Statystyki")
 with col_w:
     lista_grup = sorted(list(aktywne_portfele.keys()))
     idx_domyslny = lista_grup.index("Grupa 13") if "Grupa 13" in lista_grup else 0
@@ -281,17 +267,17 @@ st.plotly_chart(fig, use_container_width=True)
 # === TABELE ===
 col_left, col_right = st.columns([1.2, 1])
 with col_left:
-    st.subheader(f"🩻 Pozycje: {wybrana_grupa}")
+    st.subheader(f"Pozycje: {wybrana_grupa}")
     if dane_do_tabeli:
-        st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%.4f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
     else: st.info("Brak pozycji.")
 with col_right:
-    st.subheader("🏆 Ranking LIVE")
+    st.subheader("Ranking")
     st.dataframe(ranking_df.head(10), use_container_width=True, hide_index=False)
 
 # === RADAR TŁUMU ===
 st.divider()
-st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
+st.subheader("Analiza Sentymentu")
 sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY.keys()}
 for g_dane in aktywne_portfele.values():
     for inst, val in g_dane["pozycje"].items():
