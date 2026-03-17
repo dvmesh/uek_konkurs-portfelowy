@@ -12,13 +12,20 @@ from streamlit_elements import elements, mui, html
 # === KONFIGURACJA ===
 st.set_page_config(page_title="Grupa 13 - Terminal PRO", page_icon="🚀", layout="wide")
 
+# === KOLORYSTYKA (Nowoczesna, stonowana) ===
+KOLOR_ZYSK = "#4ade80"       # Szmaragdowy (Muted Green)
+KOLOR_STRATA = "#f87171"     # Koralowy (Muted Red)
+KOLOR_NEUTRAL = "#9ca3af"    # Szary (Gray)
+KOLOR_ZOLTY = "#fbbf24"      # Bursztyn (Muted Gold)
+KOLOR_TLA_KART = "#262730"   # Natywny ciemny szary Streamlita
+
 st.markdown("""
     <style>
     [data-testid="collapsedControl"] { overflow: visible !important; }
     [data-testid="collapsedControl"]::after {
         content: "REBALANS"; position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
         writing-mode: vertical-rl; text-orientation: upright;
-        font-size: 12px; font-weight: 900; color: rgba(255, 255, 255, 0.4);
+        font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.3);
         letter-spacing: 4px; pointer-events: none;
     }
     </style>
@@ -176,7 +183,6 @@ ranking_df = pd.DataFrame(wyniki_rankingu).sort_values(by="Wynik", ascending=Fal
 ranking_df.index += 1
 moje_miejsce = ranking_df[ranking_df['Grupa'] == "GRUPA 13 (MY)"].index[0]
 
-# Powiadomienia (Toast) o zmianie rankingu
 if 'poprzednie_miejsce' not in st.session_state:
     st.session_state.poprzednie_miejsce = moje_miejsce
 else:
@@ -209,18 +215,18 @@ st.title("📈 Portfel Grupy 13. [Terminal PRO]")
 with elements("stats"):
     with mui.Grid(container=True, spacing=2):
         karty = [
-            ("Start", f"{kapital_poczatkowy:.2f}", "#aaa"),
-            ("Zysk", f"{zysk_laczny:+.2f}", "#0f0" if zysk_laczny >= 0 else "#f00"),
-            ("Konto", f"{stan_konta_na_zywo:.2f}", "#fff"),
-            ("Wynik", f"{zmiana_proc_total:+.2f}%", "#0f0" if zmiana_proc_total >= 0 else "#f00"),
-            ("MDD", f"{max_dd_proc:.2f}%", "#f00" if max_dd_proc < 0 else "#aaa"),
-            ("Miejsce", f"{moje_miejsce} / {len(ranking_df)}", "#FFD700" if moje_miejsce <=3 else "#fff")
+            ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
+            ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
+            ("Konto", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
+            ("Wynik", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
+            ("MDD", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
+            ("Miejsce", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
         ]
         for lab, val, col in karty:
             with mui.Grid(item=True, xs=True):
-                with mui.Paper(sx={"padding": "12px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
-                    mui.Typography(lab, variant="overline", sx={"color": "#aaa", "lineHeight": 1})
-                    mui.Typography(val, variant="h6", sx={"color": col, "fontWeight": "bold"})
+                with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": KOLOR_TLA_KART, "color": "white", "borderRadius": "8px", "boxShadow": "0 2px 5px rgba(0,0,0,0.2)"}):
+                    mui.Typography(lab, variant="overline", sx={"color": KOLOR_NEUTRAL, "lineHeight": 1, "letterSpacing": "1px"})
+                    mui.Typography(val, variant="h5", sx={"color": col, "fontWeight": "600", "marginTop": "5px"})
 
 st.divider()
 
@@ -229,27 +235,39 @@ fig = go.Figure()
 
 if not historia_portfela.empty:
     total_my = historia_portfela.sum(axis=1)
-    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(lower=0), fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.1)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(upper=0), fill='tozeroy', fillcolor='rgba(255, 0, 0, 0.1)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='white', width=3), name='Nasz Portfel'))
+    
+    # Delikatne, przezroczyste tło wykresu (poświata)
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(lower=0), fill='tozeroy', fillcolor='rgba(74, 222, 128, 0.08)', line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(upper=0), fill='tozeroy', fillcolor='rgba(248, 113, 113, 0.08)', line=dict(width=0), showlegend=False))
+    
+    # Główna linia portfela (jasnoszara/biała)
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name='Nasz Portfel'))
 
     ost_x = total_my.index[-1]
     ost_y = total_my.iloc[-1]
-    kol = "#00ff00" if ost_y >= 0 else "#ff0000"
-    fig.add_annotation(x=ost_x, y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor="white", ax=40, ay=0, font=dict(color=kol), bgcolor="rgba(30,30,30,0.8)")
-    fig.add_trace(go.Scatter(x=[ost_x], y=[ost_y], mode='markers', marker=dict(color='white', size=8, line=dict(color=kol, width=2)), showlegend=False))
+    kol = KOLOR_ZYSK if ost_y >= 0 else KOLOR_STRATA
+    
+    fig.add_annotation(x=ost_x, y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=40, ay=0, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
+    fig.add_trace(go.Scatter(x=[ost_x], y=[ost_y], mode='markers', marker=dict(color=kol, size=7), showlegend=False))
 
 if not historia_sredniej.empty:
     historia_sredniej = historia_sredniej.bfill().ffill().fillna(0)
     total_avg = historia_sredniej.sum(axis=1)
-    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(255, 215, 0, 0.7)', width=2, dash='dot'), name='Benchmark'))
+    
+    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Benchmark Konkursu'))
     
     ost_x_a = total_avg.index[-1]
     ost_y_a = total_avg.iloc[-1]
-    fig.add_annotation(x=ost_x_a, y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor="gold", ax=45, ay=-25, font=dict(size=11, color="gold"), bgcolor="rgba(0,0,0,0.5)")
-    fig.add_trace(go.Scatter(x=[ost_x_a], y=[ost_y_a], mode='markers', marker=dict(color='gold', size=6), showlegend=False))
+    fig.add_annotation(x=ost_x_a, y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_trace(go.Scatter(x=[ost_x_a], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
 
-fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), yaxis=dict(zeroline=True, zerolinecolor='gray'), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+fig.update_layout(
+    template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), 
+    yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), 
+    xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'),
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'),
+    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+)
 st.plotly_chart(fig, use_container_width=True)
 
 # === RENTGEN I RANKING ===
@@ -264,7 +282,7 @@ with col_left:
             column_config={
                 "Cena Start": st.column_config.NumberColumn(format="%.4f"),
                 "Cena LIVE": st.column_config.NumberColumn(format="%.4f"),
-                "Wynik": st.column_config.ProgressColumn("Zysk/Strata (j.p.)", format="%f", min_value=-50, max_value=50)
+                "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)
             },
             use_container_width=True, hide_index=True
         )
@@ -276,7 +294,7 @@ with col_right:
 
 # === RADAR TŁUMU (SENTYMENT) ===
 st.divider()
-st.subheader("🎯 Radar Tłumu (Pozycjonowanie Kapitału)")
+st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
 
 sentyment = {"S&P 500": {"LONG": 0, "SHORT": 0}, "Złoto (Gold)": {"LONG": 0, "SHORT": 0}, "US10Y Yield": {"LONG": 0, "SHORT": 0}, "EUR/USD": {"LONG": 0, "SHORT": 0}}
 for obs in wszystkie_grupy:
@@ -287,12 +305,19 @@ for obs in wszystkie_grupy:
             elif val < 0: sentyment[k]["SHORT"] += abs(val)
 
 fig_pie = make_subplots(rows=1, cols=4, specs=[[{"type": "domain"}, {"type": "domain"}, {"type": "domain"}, {"type": "domain"}]], subplot_titles=list(sentyment.keys()))
-kolory = ['#00ff00', '#ff0000'] # Zielony Long, Czerwony Short
+kolory_pie = [KOLOR_ZYSK, KOLOR_STRATA]
 
 for i, (inst, dane) in enumerate(sentyment.items()):
-    fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=kolory, textinfo='percent', hole=.4), 1, i+1)
+    fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=kolory_pie, textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), 1, i+1)
 
-fig_pie.update_layout(template="plotly_dark", height=250, margin=dict(l=10, r=10, t=30, b=10), showlegend=False)
+# Kolorowanie tytułów wykresów kołowych
+for annotation in fig_pie['layout']['annotations']:
+    annotation['font'] = dict(size=13, color=KOLOR_NEUTRAL)
+
+fig_pie.update_layout(
+    template="plotly_dark", height=250, margin=dict(l=10, r=10, t=40, b=10), showlegend=False,
+    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+)
 st.plotly_chart(fig_pie, use_container_width=True)
 
 st.caption(f"Ostatnie odświeżenie: {teraz.strftime('%H:%M:%S')} | Auto-odświeżanie: 60s")
