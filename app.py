@@ -99,8 +99,8 @@ def pobierz_dane_rynkowe(ticker, data_startu):
 
 zysk_laczny = 0.0
 dane_do_tabeli = []
-historia_portfela = pd.DataFrame()
-zmiany_rynkowe = {} # Przechowuje zmiany proc. dla rankingu
+zmiany_rynkowe = {} 
+wszystkie_historie_zmian = {} # Przechowuje pełne osie czasu wszystkich 4 aktywów
 
 # === POBIERANIE DANYCH ===
 with st.spinner('Aktualizacja danych rynkowych i rankingu...'):
@@ -112,7 +112,10 @@ with st.spinner('Aktualizacja danych rynkowych i rankingu...'):
             zmiana_proc = (cena_live - cena_otw) / cena_otw
             zmiany_rynkowe[nazwa] = zmiana_proc
             
-            # Jeśli macie to w portfelu, licz statystyki i wykres
+            # Zapisujemy krzywą zwrotu do budowy wykresu benchmarku
+            wszystkie_historie_zmian[nazwa] = (hist['Close'] - cena_otw) / cena_otw
+            
+            # Obliczenia DLA WASZEGO PORTFELA
             wielkosc = pozycje_z_panelu.get(nazwa, 0.0)
             if wielkosc != 0:
                 wynik_poz = wielkosc * zmiana_proc
@@ -126,36 +129,53 @@ with st.spinner('Aktualizacja danych rynkowych i rankingu...'):
                     "Cena LIVE": f"{cena_live:.4f}",
                     "Wynik": round(wynik_poz, 4)
                 })
-                
-                seria = ((hist['Close'] - cena_otw) / cena_otw) * abs(wielkosc) * (1 if wielkosc > 0 else -1)
-                seria.name = nazwa
-                if historia_portfela.empty:
-                    historia_portfela = pd.DataFrame(seria)
-                else:
-                    historia_portfela = historia_portfela.join(seria, how='outer')
 
 stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
 zmiana_proc_total = (zysk_laczny / kapital_poczatkowy * 100) if kapital_poczatkowy != 0 else 0
 
-# === OBLICZANIE RANKINGU ===
+# === BUDOWA OSI CZASU DLA WYKRESU ===
+# 1. Historia Waszego Portfela
+historia_portfela = pd.DataFrame()
+for nazwa, wielkosc in pozycje_z_panelu.items():
+    if wielkosc != 0 and nazwa in wszystkie_historie_zmian:
+        seria = wszystkie_historie_zmian[nazwa] * abs(wielkosc) * (1 if wielkosc > 0 else -1)
+        historia_portfela = pd.DataFrame(seria) if historia_portfela.empty else historia_portfela.join(seria.rename(nazwa), how='outer')
+
+# 2. Historia Średniej (Benchmark)
+historia_sredniej = pd.DataFrame()
+nasze_obs = {
+    "SPX": pozycje_z_panelu.get("S&P 500", 0.0),
+    "GOLD": pozycje_z_panelu.get("Złoto (Gold)", 0.0),
+    "RENT": pozycje_z_panelu.get("US10Y Yield", 0.0),
+    "EURUSD": pozycje_z_panelu.get("EUR/USD", 0.0)
+}
+wszystkie_grupy = list(DANE_GRUP.values()) + [nasze_obs]
+liczba_grup = len(wszystkie_grupy)
+
+MAPOWANIE_PDF = {"SPX": "S&P 500", "GOLD": "Złoto (Gold)", "RENT": "US10Y Yield", "EURUSD": "EUR/USD"}
+
+for klucz_pdf, nazwa_inst in MAPOWANIE_PDF.items():
+    suma_wag = sum(g.get(klucz_pdf, 0) for g in wszystkie_grupy)
+    srednia_waga = suma_wag / liczba_grup
+    
+    if srednia_waga != 0 and nazwa_inst in wszystkie_historie_zmian:
+        seria_avg = wszystkie_historie_zmian[nazwa_inst] * abs(srednia_waga) * (1 if srednia_waga > 0 else -1)
+        historia_sredniej = pd.DataFrame(seria_avg) if historia_sredniej.empty else historia_sredniej.join(seria_avg.rename(nazwa_inst), how='outer')
+
+
+# === OBLICZANIE RANKINGU (Tabela na żywo) ===
 wyniki_rankingu = []
 wyniki_rankingu.append({"Grupa": "GRUPA 13 (MY)", "Wynik": stan_konta_na_zywo})
 
 for grupa, pozycje in DANE_GRUP.items():
-    wynik_grupy = 100.0 # W PDF wszyscy zaczynają ze 100
+    wynik_grupy = 100.0
     for inst, waga in pozycje.items():
-        klucz_rynkowy = None
-        if inst == "SPX": klucz_rynkowy = "S&P 500"
-        elif inst == "GOLD": klucz_rynkowy = "Złoto (Gold)"
-        elif inst == "RENT": klucz_rynkowy = "US10Y Yield"
-        elif inst == "EURUSD": klucz_rynkowy = "EUR/USD"
-        
+        klucz_rynkowy = MAPOWANIE_PDF.get(inst)
         if klucz_rynkowy and klucz_rynkowy in zmiany_rynkowe:
             wynik_grupy += waga * zmiany_rynkowe[klucz_rynkowy]
             
     wyniki_rankingu.append({"Grupa": grupa, "Wynik": round(wynik_grupy, 4)})
 
-# Sortowanie DataFrame
 ranking_df = pd.DataFrame(wyniki_rankingu).sort_values(by="Wynik", ascending=False).reset_index(drop=True)
 ranking_df.index += 1
 moje_miejsce = ranking_df[ranking_df['Grupa'] == "GRUPA 13 (MY)"].index[0]
@@ -191,53 +211,65 @@ with st.sidebar:
 # === MAIN UI ===
 st.title("📈 Portfel grupy 13. LIVE")
 
-# Karty statystyk (Material UI) - 5 KART dzięki xs=True
 with elements("dashboard_stats"):
     with mui.Grid(container=True, spacing=2):
-        # Karta 1
         with mui.Grid(item=True, xs=True):
             with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Kapitał Startowy", variant="overline", sx={"color": "#aaa"})
                 mui.Typography(f"{kapital_poczatkowy:.2f} j.p.", variant="h5", sx={"color": "#00ff00", "fontWeight": "bold"})
-        # Karta 2
         with mui.Grid(item=True, xs=True):
             with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Zysk / Strata", variant="overline", sx={"color": "#aaa"})
                 color = "#00ff00" if zysk_laczny >= 0 else "#ff0000"
                 mui.Typography(f"{zysk_laczny:+.2f} j.p.", variant="h5", sx={"color": color, "fontWeight": "bold"})
-        # Karta 3
         with mui.Grid(item=True, xs=True):
             with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Stan Konta", variant="overline", sx={"color": "#aaa"})
                 mui.Typography(f"{stan_konta_na_zywo:.2f} j.p.", variant="h5", sx={"fontWeight": "bold"})
-        # Karta 4
         with mui.Grid(item=True, xs=True):
             with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Wynik %", variant="overline", sx={"color": "#aaa"})
                 color = "#00ff00" if zmiana_proc_total >= 0 else "#ff0000"
                 mui.Typography(f"{zmiana_proc_total:+.2f}%", variant="h5", sx={"color": color, "fontWeight": "bold"})
-        # Karta 5 (RANKING)
         with mui.Grid(item=True, xs=True):
             with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": "#1e1e1e", "color": "white"}):
                 mui.Typography("Miejsce", variant="overline", sx={"color": "#FFD700"})
-                rank_color = "#FFD700" if moje_miejsce <= 3 else "#fff" # Złoty dla podium
+                rank_color = "#FFD700" if moje_miejsce <= 3 else "#fff" 
                 mui.Typography(f"{moje_miejsce} / {len(ranking_df)}", variant="h5", sx={"color": rank_color, "fontWeight": "bold"})
 
 st.divider()
 
 # Wykres
+fig = go.Figure()
+
 if not historia_portfela.empty:
     historia_portfela = historia_portfela.bfill().ffill().fillna(0)
-    historia_portfela['Zysk_Total'] = historia_portfela.sum(axis=1)
+    total_my = historia_portfela.sum(axis=1)
     
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Total'].clip(lower=0), fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.1)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Total'].clip(upper=0), fill='tozeroy', fillcolor='rgba(255, 0, 0, 0.1)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=historia_portfela.index, y=historia_portfela['Zysk_Total'], line=dict(color='white', width=2), name='Portfel Total'))
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(lower=0), fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.1)', line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(upper=0), fill='tozeroy', fillcolor='rgba(255, 0, 0, 0.1)', line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='white', width=3), name='Nasz Portfel'))
+
+if not historia_sredniej.empty:
+    historia_sredniej = historia_sredniej.bfill().ffill().fillna(0)
+    total_avg = historia_sredniej.sum(axis=1)
     
-    fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=10, t=10, b=10), 
-                      yaxis=dict(zeroline=True, zerolinecolor='gray'))
-    st.plotly_chart(fig, use_container_width=True)
+    # Dodajemy linię średniej (przerywana, złota)
+    fig.add_trace(go.Scatter(
+        x=total_avg.index, 
+        y=total_avg, 
+        line=dict(color='rgba(255, 215, 0, 0.7)', width=2, dash='dot'), 
+        name='Średnia wszystkich grup'
+    ))
+
+fig.update_layout(
+    template="plotly_dark", 
+    height=450, 
+    margin=dict(l=10, r=10, t=10, b=10), 
+    yaxis=dict(zeroline=True, zerolinecolor='gray'),
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01) # Legenda w lewym górnym rogu
+)
+st.plotly_chart(fig, use_container_width=True)
 
 # Tabele pod spodem
 col_left, col_right = st.columns([1, 1])
