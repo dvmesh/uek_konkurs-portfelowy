@@ -55,11 +55,12 @@ czy_mozna_rebalansowac = (teraz.weekday() == 6) and (teraz.hour < 23)
 
 @st.cache_data(ttl=60)
 def pobierz_dane_rynkowe(ticker, data_startu):
-    hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
+    ticker_obj = yf.Ticker(ticker)
+    hist = ticker_obj.history(start=data_startu, interval="1h")
     if hist.empty:
-        hist = yf.Ticker(ticker).history(period="5d", interval="1h")
+        hist = ticker_obj.history(period="5d", interval="1h")
     if not hist.empty:
-        hist.index = hist.index.tz_localize(None) 
+        hist.index = hist.index.tz_localize(None)
     return hist
 
 zysk_laczny = 0.0
@@ -67,22 +68,22 @@ dane_do_tabeli = []
 historia_portfela = pd.DataFrame()
 
 with st.spinner('Pobieram dane z giełdy...'):
+    cache_hist = {}
     for nazwa, wielkosc in pozycje_z_panelu.items():
-        if wielkosc == 0: 
-            continue 
-            
+        if wielkosc == 0:
+            continue
         ticker = TICKERY[nazwa]
         try:
-            hist = pobierz_dane_rynkowe(ticker, data_startu_str)
+            if ticker not in cache_hist:
+                cache_hist[ticker] = pobierz_dane_rynkowe(ticker, data_startu_str)
+            hist = cache_hist[ticker]
             if not hist.empty:
                 cena_otwarcia = hist['Open'].iloc[0]
                 cena_live = hist['Close'].iloc[-1]
-                
                 zmiana_procentowa = (cena_live - cena_otwarcia) / cena_otwarcia
                 wynik_pozycji = wielkosc * zmiana_procentowa
                 zysk_laczny += wynik_pozycji
-                zmiana_proc_total = zmiana_procentowa*100
-                
+                zmiana_proc_total = zmiana_procentowa * 100
                 dane_do_tabeli.append({
                     "Instrument": nazwa,
                     "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
@@ -91,18 +92,15 @@ with st.spinner('Pobieram dane z giełdy...'):
                     "Cena LIVE": f"{cena_live:.4f}",
                     "Wynik": round(wynik_pozycji, 4)
                 })
-                
                 kierunek_czynnik = 1 if wielkosc > 0 else -1
                 seria_zysku = ((hist['Close'] - cena_otwarcia) / cena_otwarcia) * abs(wielkosc) * kierunek_czynnik
                 seria_zysku.name = nazwa
-                
                 if historia_portfela.empty:
                     historia_portfela = pd.DataFrame(seria_zysku)
                 else:
                     historia_portfela = historia_portfela.join(seria_zysku, how='outer')
-                    
         except Exception as e:
-            pass
+            st.warning(f"Błąd pobierania danych dla {nazwa}: {e}")
 
 stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
 
