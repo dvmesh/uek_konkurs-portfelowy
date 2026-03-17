@@ -160,6 +160,7 @@ col1, col2, col3 = st.columns(3)
 col1.metric("Kapitał na początku tyg.", f"{kapital_poczatkowy:.2f} j.p.")
 col2.metric("Zysk / Strata", f"{zysk_laczny:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
 col3.metric("Stan Konta", f"{stan_konta_na_zywo:.2f} j.p.", f"{zysk_laczny:.4f} j.p.")
+col4.metric("Zmiana Procentowa", f"{(kapital_poczatkowy/zysk_laczny)*100} %")
 
 st.divider()
 
