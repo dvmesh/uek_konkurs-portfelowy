@@ -10,15 +10,30 @@ from datetime import datetime, timedelta
 from streamlit_elements import elements, mui
 
 # === KONFIGURACJA UI ===
-st.set_page_config(page_title="KONKURS PORTFELOWY", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Terminal Konkursowy PRO", page_icon="🚀", layout="wide")
 
 KOLOR_ZYSK = "#4ade80"
 KOLOR_STRATA = "#f87171"
 KOLOR_NEUTRAL = "#9ca3af"
 KOLOR_ZOLTY = "#fbbf24"
+KOLOR_RYNEK = "#38bdf8"
 KOLOR_TLA_KART = "#262730"
 
-# === SYSTEM ZAPISU I DANYCH (ZOPTYMALIZOWANY) ===
+st.markdown("""
+    <style>
+    header[data-testid="stHeader"] { overflow: visible !important; z-index: 99999 !important; }
+    [data-testid="collapsedControl"] { overflow: visible !important; }
+    [data-testid="collapsedControl"]::after {
+        content: "REBALANS"; position: absolute; top: 50px; left: 15px; 
+        writing-mode: vertical-rl; text-orientation: upright;
+        font-size: 11px; font-weight: 800; color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 4px; pointer-events: none; z-index: 99999 !important;
+    }
+    [data-testid="collapsedControl"]:hover::after { color: #fbbf24; transition: 0.3s; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# === SYSTEM ZAPISU I DANYCH ===
 PLIK_USTAWIEN = "portfel.json"
 
 @st.cache_data
@@ -27,7 +42,7 @@ def wczytaj_dane_statyczne():
         with open("dane_statyczne.json", "r") as f:
             return json.load(f)
     except:
-        st.error("Błąd: Brak pliku dane_statyczne.json!")
+        st.error("Błąd: Brak pliku dane_statyczne.json! Upewnij się, że stworzyłeś ten plik na GitHubie.")
         return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
 
 def wczytaj_ustawienia():
@@ -36,7 +51,7 @@ def wczytaj_ustawienia():
             with open(PLIK_USTAWIEN, "r") as f:
                 return json.load(f)
         except: pass
-    return {"kapital_startowy": 100.0, "pozycje": {"S&P 500": 0.0, "US10Y Yield": 50.0, "Złoto (Gold)": -50.0, "EUR/USD": 0.0}}
+    return {}
 
 def zapisz_ustawienia(ustawienia):
     with open(PLIK_USTAWIEN, "w") as f:
@@ -48,8 +63,36 @@ MAPOWANIE_PDF = dane_stat.get("MAPOWANIE_PDF", {})
 DANE_GRUP = dane_stat.get("DANE_GRUP", {})
 
 ustawienia = wczytaj_ustawienia()
-kapital_poczatkowy = float(ustawienia.get("kapital_startowy", 100.0))
-pozycje_z_panelu = ustawienia.get("pozycje", {})
+
+# --- SCALANIE DANYCH (Baza z PDF + Nadpisania od Admina) ---
+aktywne_portfele = {}
+for g_nazwa, g_poz in DANE_GRUP.items():
+    aktywne_portfele[g_nazwa] = {
+        "kapital_startowy": 100.0,
+        "pozycje": {
+            "S&P 500": g_poz.get("SPX", 0.0), "Złoto (Gold)": g_poz.get("GOLD", 0.0),
+            "US10Y Yield": g_poz.get("RENT", 0.0), "EUR/USD": g_poz.get("EURUSD", 0.0)
+        }
+    }
+
+if "Grupa 13" not in aktywne_portfele:
+    aktywne_portfele["Grupa 13"] = {"kapital_startowy": 100.0, "pozycje": {"S&P 500": 0.0, "US10Y Yield": 50.0, "Złoto (Gold)": -50.0, "EUR/USD": 0.0}}
+
+# Nadpisujemy ustawieniami z pliku JSON (zmiany dokonane przez admina)
+for g_nazwa, g_dane in ustawienia.items():
+    aktywne_portfele[g_nazwa] = g_dane 
+
+# === GŁÓWNE UI - WYBÓR GRUPY NA SAMEJ GÓRZE ===
+col_t, col_w = st.columns([2, 1])
+with col_t:
+    st.title("📊 Terminal Portfelowy")
+with col_w:
+    lista_grup = sorted(list(aktywne_portfele.keys()))
+    idx_domyslny = lista_grup.index("Grupa 13") if "Grupa 13" in lista_grup else 0
+    wybrana_grupa = st.selectbox("Przełącz podgląd na grupę:", lista_grup, index=idx_domyslny)
+
+kapital_poczatkowy = float(aktywne_portfele[wybrana_grupa]["kapital_startowy"])
+pozycje_z_panelu = aktywne_portfele[wybrana_grupa]["pozycje"]
 
 # === LOGIKA CZASU ===
 teraz = datetime.now()
@@ -92,6 +135,7 @@ with st.spinner('Synchronizacja z giełdą...'):
             zmiany_rynkowe[nazwa] = zmiana_proc
             wszystkie_historie_zmian[nazwa] = (hist['Close'] - cena_otw) / cena_otw
             
+            # Obliczenia tylko dla wybranej w selectboxie grupy
             wielkosc = pozycje_z_panelu.get(nazwa, 0.0)
             if wielkosc != 0:
                 wynik_poz = wielkosc * zmiana_proc
@@ -112,20 +156,18 @@ for nazwa, wielkosc in pozycje_z_panelu.items():
         historia_portfela = pd.DataFrame(seria) if historia_portfela.empty else historia_portfela.join(seria.rename(nazwa), how='outer')
 
 historia_sredniej = pd.DataFrame()
-nasze_obs = {"SPX": pozycje_z_panelu.get("S&P 500", 0.0), "GOLD": pozycje_z_panelu.get("Złoto (Gold)", 0.0), "RENT": pozycje_z_panelu.get("US10Y Yield", 0.0), "EURUSD": pozycje_z_panelu.get("EUR/USD", 0.0)}
-wszystkie_grupy = list(DANE_GRUP.values()) + [nasze_obs]
+liczba_grup = len(aktywne_portfele)
 
-for klucz_pdf, nazwa_inst in MAPOWANIE_PDF.items():
-    srednia_waga = sum(g.get(klucz_pdf, 0) for g in wszystkie_grupy) / len(wszystkie_grupy)
+for nazwa_inst in TICKERY.keys():
+    suma_wag = sum(g["pozycje"].get(nazwa_inst, 0.0) for g in aktywne_portfele.values())
+    srednia_waga = suma_wag / liczba_grup if liczba_grup > 0 else 0
     if srednia_waga != 0 and nazwa_inst in wszystkie_historie_zmian:
         seria_avg = wszystkie_historie_zmian[nazwa_inst] * abs(srednia_waga) * (1 if srednia_waga > 0 else -1)
         historia_sredniej = pd.DataFrame(seria_avg) if historia_sredniej.empty else historia_sredniej.join(seria_avg.rename(nazwa_inst), how='outer')
 
-# === HISTORIA RYNKU (25% w każdy instrument) ===
 historia_rynku = pd.DataFrame()
 for nazwa_inst in TICKERY.keys():
     if nazwa_inst in wszystkie_historie_zmian:
-        # Symulacja: równe 25 j.p. w pozycję LONG na każdym instrumencie
         seria_rynek = wszystkie_historie_zmian[nazwa_inst] * 25.0
         historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
 
@@ -138,44 +180,57 @@ if not historia_portfela.empty:
     max_dd_proc = ((wartosc_konta_historia - szczyt) / szczyt * 100).min()
 
 # === RANKING ===
-wyniki_rankingu = [{"Grupa": "GRUPA 13 (MY)", "Wynik": stan_konta_na_zywo}]
-for grupa, pozycje in DANE_GRUP.items():
-    wynik_g = 100.0
-    for inst, waga in pozycje.items():
-        k_rynk = MAPOWANIE_PDF.get(inst)
-        if k_rynk and k_rynk in zmiany_rynkowe: wynik_g += waga * zmiany_rynkowe[k_rynk]
-    wyniki_rankingu.append({"Grupa": grupa, "Wynik": round(wynik_g, 4)})
+wyniki_rankingu = []
+for g_nazwa, g_dane in aktywne_portfele.items():
+    wynik_g = g_dane["kapital_startowy"]
+    for inst, waga in g_dane["pozycje"].items():
+        if inst in zmiany_rynkowe:
+            wynik_g += waga * zmiany_rynkowe[inst]
+    wyniki_rankingu.append({"Grupa": g_nazwa, "Wynik": round(wynik_g, 4)})
 
 ranking_df = pd.DataFrame(wyniki_rankingu).sort_values(by="Wynik", ascending=False).reset_index(drop=True)
 ranking_df.index += 1
-moje_miejsce = ranking_df[ranking_df['Grupa'] == "GRUPA 13 (MY)"].index[0]
+moje_miejsce = ranking_df[ranking_df['Grupa'] == wybrana_grupa].index[0] if wybrana_grupa in ranking_df['Grupa'].values else 0
 
 if 'poprzednie_miejsce' not in st.session_state: st.session_state.poprzednie_miejsce = moje_miejsce
 else:
-    if moje_miejsce < st.session_state.poprzednie_miejsce: st.toast(f"🚀 Awans! Jesteśmy na {moje_miejsce} miejscu!", icon="🔥")
+    if moje_miejsce < st.session_state.poprzednie_miejsce: st.toast(f"🚀 Awans! Wybrana grupa jest na {moje_miejsce} miejscu!", icon="🔥")
     elif moje_miejsce > st.session_state.poprzednie_miejsce: st.toast(f"⚠️ Spadek na {moje_miejsce} miejsce.", icon="📉")
     st.session_state.poprzednie_miejsce = moje_miejsce
 
-# === SIDEBAR ===
+# === SIDEBAR (PANEL ADMINA) ===
 with st.sidebar:
-    st.header("⚙️ Panel Rebalansu")
+    st.header("⚙️ Panel Admina (Relokacja)")
     if not czy_mozna_rebalansowac:
         st.error("🔒 **Blokada do niedzieli**")
         st.info(f"Wygasa za: {roznica.days}d {roznica.seconds//3600}h")
     else:
         st.success("🔓 **Panel Otwarty**")
-        if st.text_input("PIN:", type="password") == "2137":
-            nk = st.number_input("Kapitał", value=float(round(stan_konta_na_zywo, 2)))
-            np = {k: st.number_input(k, value=float(pozycje_z_panelu.get(k, 0)), step=5.0) for k in TICKERY.keys()}
-            if sum(abs(v) for v in np.values()) > nk: st.error("Limit przekroczony!")
-            elif st.button("💾 ZAPISZ USTAWIENIA"):
-                zapisz_ustawienia({"kapital_startowy": nk, "pozycje": np})
+        if st.text_input("Hasło Admina:", type="password") == "asdqwe123":
+            grupa_do_edycji = st.selectbox("Edytuj portfel grupy:", sorted(list(aktywne_portfele.keys())))
+            
+            aktualny_kap = aktywne_portfele[grupa_do_edycji]["kapital_startowy"]
+            aktualne_poz = aktywne_portfele[grupa_do_edycji]["pozycje"]
+            
+            wypracowany_kapital = aktualny_kap
+            for k_inst, w_poz in aktualne_poz.items():
+                if k_inst in zmiany_rynkowe:
+                    wypracowany_kapital += w_poz * zmiany_rynkowe[k_inst]
+                    
+            nk = st.number_input(f"Nowy kapitał ({grupa_do_edycji})", value=float(round(wypracowany_kapital, 2)))
+            np = {k: st.number_input(k, value=float(aktualne_poz.get(k, 0)), step=5.0) for k in TICKERY.keys()}
+            
+            if sum(abs(v) for v in np.values()) > nk: 
+                st.error("Limit przekroczony!")
+            elif st.button("💾 ZAPISZ GRUPĘ"):
+                ustawienia[grupa_do_edycji] = {"kapital_startowy": nk, "pozycje": np}
+                zapisz_ustawienia(ustawienia)
                 st.cache_data.clear()
+                st.success(f"Zapisano portfel: {grupa_do_edycji}!")
+                time.sleep(1)
                 st.rerun()
 
-# === GŁÓWNY INTERFEJS ===
-st.title("Analiza portfela - Grupa 13")
-
+# === KARTY STATYSTYK ===
 with elements("stats"):
     with mui.Grid(container=True, spacing=2):
         karty = [
@@ -197,30 +252,26 @@ st.divider()
 # === WYKRES ===
 fig = go.Figure()
 if not historia_portfela.empty:
-    total_my = historia_portfela.bfill().ffill().fillna(0).sum(axis=1)
+    total_my = historia_portfela.ffill().fillna(0).sum(axis=1)
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(lower=0), fill='tozeroy', fillcolor='rgba(74, 222, 128, 0.08)', line=dict(width=0), showlegend=False))
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my.clip(upper=0), fill='tozeroy', fillcolor='rgba(248, 113, 113, 0.08)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name='Nasz Portfel'))
+    fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name=wybrana_grupa))
 
     ost_y, kol = total_my.iloc[-1], KOLOR_ZYSK if total_my.iloc[-1] >= 0 else KOLOR_STRATA
     fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=40, ay=0, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
     fig.add_trace(go.Scatter(x=[total_my.index[-1]], y=[ost_y], mode='markers', marker=dict(color=kol, size=7), showlegend=False))
 
 if not historia_sredniej.empty:
-    total_avg = historia_sredniej.bfill().ffill().fillna(0).sum(axis=1)
-    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Benchmark Konkursu'))
+    total_avg = historia_sredniej.ffill().fillna(0).sum(axis=1)
+    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Średnia Konkursu'))
     ost_y_a = total_avg.iloc[-1]
     fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_avg.index[-1]], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
 
 if not historia_rynku.empty:
     total_rynek = historia_rynku.ffill().fillna(0).sum(axis=1)
-    
-    # Linia Rynku (Jasnoniebieska, przerywana)
-    fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Czysty Rynek (4x25)'))
-    
+    fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Rynek (4x25)'))
     ost_y_r = total_rynek.iloc[-1]
-    # ay=25 przesuwa napis w dół, żeby nie nakładał się na inne!
     fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=45, ay=25, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_rynek.index[-1]], y=[ost_y_r], mode='markers', marker=dict(color="#38bdf8", size=5), showlegend=False))
 
@@ -230,24 +281,23 @@ st.plotly_chart(fig, use_container_width=True)
 # === TABELE ===
 col_left, col_right = st.columns([1.2, 1])
 with col_left:
-    st.subheader("Pozycje")
+    st.subheader(f"🩻 Pozycje: {wybrana_grupa}")
     if dane_do_tabeli:
         st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
     else: st.info("Brak pozycji.")
 with col_right:
-    st.subheader("Ranking")
+    st.subheader("🏆 Ranking LIVE")
     st.dataframe(ranking_df.head(10), use_container_width=True, hide_index=False)
 
 # === RADAR TŁUMU ===
 st.divider()
-st.subheader("Analiza Sentymentu")
+st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
 sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY.keys()}
-for obs in wszystkie_grupy:
-    for inst, val in obs.items():
-        k = MAPOWANIE_PDF.get(inst)
-        if k:
-            if val > 0: sentyment[k]["LONG"] += val
-            elif val < 0: sentyment[k]["SHORT"] += abs(val)
+for g_dane in aktywne_portfele.values():
+    for inst, val in g_dane["pozycje"].items():
+        if inst in sentyment:
+            if val > 0: sentyment[inst]["LONG"] += val
+            elif val < 0: sentyment[inst]["SHORT"] += abs(val)
 
 fig_pie = make_subplots(rows=1, cols=4, specs=[[{"type": "domain"}]*4], subplot_titles=list(sentyment.keys()))
 for i, (inst, dane) in enumerate(sentyment.items()):
