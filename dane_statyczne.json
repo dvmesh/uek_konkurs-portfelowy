@@ -29,7 +29,7 @@
     "Grupa 15": {"SPX": 10, "GOLD": 40, "RENT": 50, "EURUSD": 0},
     "Grupa A": {"SPX": -30, "GOLD": 70, "RENT": 0, "EURUSD": 0},
     "Grupa B": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": -50},
-    "Grupa C": {"SPX": -30, "GOLD": -40, "RENT": , "EURUSD": -30},
+    "Grupa C": {"SPX": -30, "GOLD": -40, "RENT": 0, "EURUSD": -30},
     "Grupa D": {"SPX": 40, "GOLD": 60, "RENT": 0, "EURUSD": 0},
     "Grupa E": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
     "Grupa F": {"SPX": -40, "GOLD": -25, "RENT": 25, "EURUSD": -10},

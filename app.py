@@ -228,30 +228,34 @@ with st.sidebar:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### Informacje o systemie")
-    st.markdown("**Stworzone przez:** [Zmień Na Swoje Imię]")
-    st.markdown("[Repozytorium GitHub](https://github.com/twoj-profil/twoje-repo)")
+    st.markdown("**Autor:** Antoni Bulsiewicz")
+    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy")
 
 # ==========================================
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
 
-# 1. KARTY STATYSTYK
-with elements("stats"):
-    with mui.Grid(container=True, spacing=2):
-        karty = [
-            ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
-            ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
-            ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
-            ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
-            ("Obsunięcie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
-            ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
-        ]
-        for lab, val, col in karty:
-            with mui.Grid(item=True, xs=True):
-                with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": KOLOR_TLA_KART, "color": "white", "borderRadius": "8px", "boxShadow": "0 2px 5px rgba(0,0,0,0.2)"}):
-                    mui.Typography(lab, variant="overline", sx={"color": KOLOR_NEUTRAL, "lineHeight": 1, "letterSpacing": "1px"})
-                    mui.Typography(val, variant="h5", sx={"color": col, "fontWeight": "600", "marginTop": "5px"})
+# 1. KARTY STATYSTYK (Przebudowane na natywne kolumny - brak dziury!)
+karty = [
+    ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
+    ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
+    ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
+    ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
+    ("Obsunięcie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
+    ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
+]
 
+kolumny = st.columns(6)
+for i, (lab, val, col) in enumerate(karty):
+    with kolumny[i]:
+        st.markdown(f"""
+            <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
+                <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True) # Mały, kontrolowany odstęp
 st.divider()
 
 # 2. GŁÓWNY WYKRES PORTFELA
