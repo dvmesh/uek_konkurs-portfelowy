@@ -3,3 +3,4 @@ streamlit_elements
 yfinance
 pandas
 plotly
+numpy
