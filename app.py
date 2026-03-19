@@ -22,7 +22,6 @@ KOLOR_TLA_KART = "#262730"
 # === SYSTEM ZAPISU I DANYCH ===
 PLIK_USTAWIEN = "portfel.json"
 
-@st.cache_data
 def wczytaj_dane_statyczne():
     try:
         with open("dane_statyczne.json", "r") as f:
