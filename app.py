@@ -19,8 +19,6 @@ KOLOR_ZOLTY = "#fbbf24"
 KOLOR_RYNEK = "#38bdf8"
 KOLOR_TLA_KART = "#262730"
 
-# Usunięto problematyczny CSS wymuszający pionowy napis.
-
 # === SYSTEM ZAPISU I DANYCH ===
 PLIK_USTAWIEN = "portfel.json"
 
@@ -30,7 +28,7 @@ def wczytaj_dane_statyczne():
         with open("dane_statyczne.json", "r") as f:
             return json.load(f)
     except:
-        st.error("Błąd: Brak pliku dane_statyczne.json!")
+        st.error("Błąd: Brak pliku dane_statyczne.json! Upewnij się, że stworzyłeś ten plik na GitHubie.")
         return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
 
 def wczytaj_ustawienia():
@@ -104,7 +102,7 @@ with st.spinner('Synchronizacja z giełdą...'):
             zmiany_rynkowe[nazwa] = (cena_live - cena_otw) / cena_otw
             wszystkie_historie_zmian[nazwa] = (hist['Close'] - cena_otw) / cena_otw
 
-# === 2. WYLICZENIE RANKINGU (Dla wyboru lidera) ===
+# === 2. WYLICZENIE RANKINGU ===
 wyniki_rankingu = []
 for g_nazwa, g_dane in aktywne_portfele.items():
     wynik_g = g_dane["kapital_startowy"]
@@ -245,21 +243,8 @@ with elements("stats"):
 
 st.divider()
 
-# 2. TABELE: RENTGEN PORTFELA I RANKING
-col_left, col_right = st.columns([1.2, 1])
-with col_left:
-    st.subheader(f"🩻 Pozycje: {wybrana_grupa}")
-    if dane_do_tabeli:
-        st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
-    else: st.info("Brak pozycji.")
-with col_right:
-    st.subheader("🏆 Ranking LIVE")
-    st.dataframe(ranking_df.head(10), use_container_width=True, hide_index=False)
-
-st.divider()
-
-# 3. GŁÓWNY WYKRES PORTFELA
-st.subheader("📈 Analiza Portfela na tle rynku")
+# 2. GŁÓWNY WYKRES PORTFELA (Na samej górze!)
+st.subheader(f"📈 Wykres Portfela: {wybrana_grupa}")
 fig = go.Figure()
 if not historia_portfela.empty:
     total_my = historia_portfela.ffill().fillna(0).sum(axis=1)
@@ -290,20 +275,57 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
-# 4. NOWY WYKRES: CZYSTE INSTRUMENTY
+# 3. TABELE: POZYCJE + SENTYMENT (LEWA) ORAZ RANKING (PRAWA)
+col_left, col_right = st.columns([1.1, 1])
+
+with col_left:
+    st.subheader(f"🩻 Pozycje grupy")
+    if dane_do_tabeli:
+        st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
+    else: st.info("Brak otwartych pozycji.")
+    
+    # RADAR TŁUMU UPCHNIĘTY POD POZYCJAMI (Siatka 2x2)
+    st.write("") # Mały odstęp
+    st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
+    sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY.keys()}
+    for g_dane in aktywne_portfele.values():
+        for inst, val in g_dane["pozycje"].items():
+            k = MAPOWANIE_PDF.get(inst)
+            if k:
+                if val > 0: sentyment[k]["LONG"] += val
+                elif val < 0: sentyment[k]["SHORT"] += abs(val)
+
+    # Zmiana z 1x4 na 2x2
+    fig_pie = make_subplots(rows=2, cols=2, specs=[[{"type": "domain"}, {"type": "domain"}], [{"type": "domain"}, {"type": "domain"}]], subplot_titles=list(sentyment.keys()))
+    
+    for i, (inst, dane) in enumerate(sentyment.items()):
+        row = (i // 2) + 1
+        col = (i % 2) + 1
+        fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
+    
+    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
+    fig_pie.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+with col_right:
+    st.subheader("🏆 Pełny Ranking LIVE")
+    # Dynamiczna wysokość (height=600) pozwala na wyświetlenie pełnego rankingu dopasowanego do lewej kolumny
+    st.dataframe(ranking_df, height=600, use_container_width=True, hide_index=False)
+
+st.divider()
+
+# 4. WYKRES INSTRUMENTÓW (Na samym dole)
 st.subheader("📊 Notowania Instrumentów (Zmiana %)")
 fig_inst = go.Figure()
 
-# Kolory dedykowane dla instrumentów
 kolory_inst = {"S&P 500": "#3b82f6", "US10Y Yield": "#a855f7", "Złoto (Gold)": "#eab308", "EUR/USD": "#06b6d4"}
 
 for nazwa, seria in wszystkie_historie_zmian.items():
     if not seria.empty:
-        seria_czysta = seria.ffill().fillna(0) * 100 # Mnożymy razy 100 żeby pokazać procenty
+        seria_czysta = seria.ffill().fillna(0) * 100 
         kolor = kolory_inst.get(nazwa, "#ffffff")
         fig_inst.add_trace(go.Scatter(x=seria_czysta.index, y=seria_czysta, mode='lines', name=nazwa, line=dict(color=kolor, width=2)))
         
-        # Ostatnia kropka
         ost_y_inst = seria_czysta.iloc[-1]
         fig_inst.add_trace(go.Scatter(x=[seria_czysta.index[-1]], y=[ost_y_inst], mode='markers', marker=dict(color=kolor, size=6), showlegend=False, hoverinfo='skip'))
 
@@ -315,26 +337,6 @@ fig_inst.update_layout(
     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
 )
 st.plotly_chart(fig_inst, use_container_width=True)
-
-st.divider()
-
-# 5. RADAR TŁUMU (SENTYMENT)
-st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
-sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY.keys()}
-for g_dane in aktywne_portfele.values():
-    for inst, val in g_dane["pozycje"].items():
-        k = MAPOWANIE_PDF.get(inst)
-        if k:
-            if val > 0: sentyment[k]["LONG"] += val
-            elif val < 0: sentyment[k]["SHORT"] += abs(val)
-
-fig_pie = make_subplots(rows=1, cols=4, specs=[[{"type": "domain"}]*4], subplot_titles=list(sentyment.keys()))
-for i, (inst, dane) in enumerate(sentyment.items()):
-    fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), 1, i+1)
-for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
-
-fig_pie.update_layout(template="plotly_dark", height=250, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-st.plotly_chart(fig_pie, use_container_width=True)
 
 st.caption(f"Ostatnie odświeżenie: {teraz.strftime('%H:%M:%S')} | Auto-odświeżanie: 60s")
 time.sleep(60)
