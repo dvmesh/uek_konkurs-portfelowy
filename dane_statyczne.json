@@ -24,6 +24,7 @@
     "Grupa 10": {"SPX": 0, "GOLD": -30, "RENT": 40, "EURUSD": -30},
     "Grupa 11": {"SPX": 25, "GOLD": -25, "RENT": 25, "EURUSD": -25},
     "Grupa 12": {"SPX": -60, "GOLD": 0, "RENT": 40, "EURUSD": 0},
+    "Grupa 13": {"SPX": 0, "GOLD": -50, "RENT": 50, "EURUSD": 0},
     "Grupa 14": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": 0},
     "Grupa 15": {"SPX": 10, "GOLD": 40, "RENT": 50, "EURUSD": 0},
     "Grupa A": {"SPX": -30, "GOLD": 70, "RENT": 0, "EURUSD": 0},
