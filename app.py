@@ -4,7 +4,6 @@ import os
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
@@ -170,17 +169,13 @@ for nazwa_inst in TICKERY.keys():
         seria_rynek = wszystkie_historie_zmian[nazwa_inst] * 25.0
         historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
 
-# === 6. RYZYKO I DYWERSYFIKACJA ===
-zmiennosc_proc = 0.0
-if not historia_portfela.empty and kapital_poczatkowy > 0:
-    total_my = historia_portfela.ffill().fillna(0).sum(axis=1)
-    ret_h = total_my.diff().fillna(0) / kapital_poczatkowy
-    # Skalowanie zmienności godzinowej do tygodniowej (ok. 120 godzin handlu)
-    zmiennosc_proc = ret_h.std() * np.sqrt(120) * 100
-
-suma_pozycji = sum(abs(w) for w in pozycje_z_panelu.values())
-max_pozycja = max((abs(w) for w in pozycje_z_panelu.values()), default=0)
-koncentracja = (max_pozycja / suma_pozycji * 100) if suma_pozycji > 0 else 0.0
+# === 6. MAX DRAWDOWN ===
+max_dd_proc = 0.0
+if not historia_portfela.empty:
+    hp_czysta = historia_portfela.ffill().fillna(0)
+    wartosc_konta_historia = kapital_poczatkowy + hp_czysta.sum(axis=1)
+    szczyt = wartosc_konta_historia.cummax()
+    max_dd_proc = ((wartosc_konta_historia - szczyt) / szczyt * 100).min()
 
 # === POWIADOMIENIA ===
 moje_miejsce = ranking_df[ranking_df['Grupa'] == wybrana_grupa].index[0] if wybrana_grupa in ranking_df['Grupa'].values else 0
@@ -228,38 +223,39 @@ with st.sidebar:
                 time.sleep(1)
                 st.rerun()
     
+    # CREDITS NA DOLE SIDEBARA
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### Informacje o systemie")
     st.markdown("**Autor:** Antoni Bulsiewicz")
-    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy)")
+    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy")
 
 # ==========================================
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
 
-# 1. KARTY STATYSTYK (Responsywny CSS Grid)
-kolor_koncentracji = KOLOR_STRATA if koncentracja >= 75 else (KOLOR_ZOLTY if koncentracja >= 40 else KOLOR_NEUTRAL)
-
+# 1. KARTY STATYSTYK (Przebudowane na natywne kolumny - brak dziury!)
 karty = [
+    ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
+    ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
     ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
-    ("Zysk netto", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
     ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
-    ("Zmienność (Vol)", f"{zmiennosc_proc:.2f}%", KOLOR_NEUTRAL),
-    ("Koncentracja", f"{koncentracja:.0f}%", kolor_koncentracji),
+    ("Obsunięcie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
     ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
 ]
 
-html_karty = f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">'
-for lab, val, col in karty:
-    html_karty += f"""
-    <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-        <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
-        <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
-    </div>
-    """
-html_karty += '</div>'
-st.markdown(html_karty, unsafe_allow_html=True)
+kolumny = st.columns(6)
+for i, (lab, val, col) in enumerate(karty):
+    with kolumny[i]:
+        st.markdown(f"""
+            <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
+                <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True) # Mały, kontrolowany odstęp
+st.divider()
 
 # 2. GŁÓWNY WYKRES PORTFELA
 st.subheader("Stopa Zwrotu (vs Benchmark)")
@@ -271,30 +267,24 @@ if not historia_portfela.empty:
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name=wybrana_grupa))
 
     ost_y, kol = total_my.iloc[-1], KOLOR_ZYSK if total_my.iloc[-1] >= 0 else KOLOR_STRATA
-    fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=30, ay=-20, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
+    fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=40, ay=0, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
     fig.add_trace(go.Scatter(x=[total_my.index[-1]], y=[ost_y], mode='markers', marker=dict(color=kol, size=7), showlegend=False))
 
 if not historia_sredniej.empty:
     total_avg = historia_sredniej.ffill().fillna(0).sum(axis=1)
     fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Średnia Konkursu'))
     ost_y_a = total_avg.iloc[-1]
-    fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=30, ay=10, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_avg.index[-1]], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
 
 if not historia_rynku.empty:
     total_rynek = historia_rynku.ffill().fillna(0).sum(axis=1)
     fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Rynek (Równa Alokacja)'))
     ost_y_r = total_rynek.iloc[-1]
-    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=30, ay=35, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=45, ay=25, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_rynek.index[-1]], y=[ost_y_r], mode='markers', marker=dict(color="#38bdf8", size=5), showlegend=False))
 
-fig.update_layout(
-    template="plotly_dark", height=450, margin=dict(l=10, r=50, t=10, b=10), 
-    yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), 
-    xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, bgcolor='rgba(0,0,0,0)'),
-    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-)
+fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
@@ -328,8 +318,8 @@ with col_left:
         else:
             fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
     
-    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=12, color=KOLOR_NEUTRAL)
-    fig_pie.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=30, b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
+    fig_pie.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig_pie, use_container_width=True)
 
 with col_right:
@@ -363,3 +353,5 @@ fig_inst.update_layout(
 st.plotly_chart(fig_inst, use_container_width=True)
 
 st.caption(f"Stan danych: {teraz.strftime('%H:%M:%S')} | Częstotliwość odświeżania: 60s")
+time.sleep(60)
+st.rerun()
