@@ -169,13 +169,22 @@ for nazwa_inst in TICKERY.keys():
         seria_rynek = wszystkie_historie_zmian[nazwa_inst] * 25.0
         historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
 
-# === 6. MAX DRAWDOWN ===
-max_dd_proc = 0.0
-if not historia_portfela.empty:
-    hp_czysta = historia_portfela.ffill().fillna(0)
-    wartosc_konta_historia = kapital_poczatkowy + hp_czysta.sum(axis=1)
-    szczyt = wartosc_konta_historia.cummax()
-    max_dd_proc = ((wartosc_konta_historia - szczyt) / szczyt * 100).min()
+# === 6. RYZYKO I ZMIENNOŚĆ (NOWE WSKAŹNIKI ZAMIAST MDD) ===
+zmiennosc_proc = 0.0
+if not historia_portfela.empty and kapital_poczatkowy > 0:
+    try:
+        # Obliczenie wahań portfela przy użyciu czystego pandas
+        total_my = historia_portfela.ffill().fillna(0).sum(axis=1)
+        ret_h = total_my.pct_change().fillna(0)
+        # Przeskalowanie do ujęcia tygodniowego (~120 godzin), pierwiastek jako potęga 0.5
+        zmiennosc_proc = ret_h.std() * (120 ** 0.5) * 100 
+    except:
+        zmiennosc_proc = 0.0
+
+suma_pozycji = sum(abs(w) for w in pozycje_z_panelu.values())
+max_pozycja = max((abs(w) for w in pozycje_z_panelu.values()), default=0)
+# Obliczamy jaki procent całości stanowi największa pozycja
+koncentracja = (max_pozycja / suma_pozycji * 100) if suma_pozycji > 0 else 0.0
 
 # === POWIADOMIENIA ===
 moje_miejsce = ranking_df[ranking_df['Grupa'] == wybrana_grupa].index[0] if wybrana_grupa in ranking_df['Grupa'].values else 0
@@ -223,38 +232,35 @@ with st.sidebar:
                 time.sleep(1)
                 st.rerun()
     
-    # CREDITS NA DOLE SIDEBARA
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### Informacje o systemie")
     st.markdown("**Autor:** Antoni Bulsiewicz")
-    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy")
+    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy)")
 
 # ==========================================
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
 
-# 1. KARTY STATYSTYK (Przebudowane na natywne kolumny - brak dziury!)
-karty = [
-    ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
-    ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
-    ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
-    ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
-    ("Obsunięcie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
-    ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
-]
+# 1. KARTY STATYSTYK (Przebudowane wg Twoich wytycznych)
+kolor_konc = KOLOR_STRATA if koncentracja >= 75 else (KOLOR_ZOLTY if koncentracja >= 40 else KOLOR_NEUTRAL)
 
-kolumny = st.columns(6)
-for i, (lab, val, col) in enumerate(karty):
-    with kolumny[i]:
-        st.markdown(f"""
-            <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
-                <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
-            </div>
-        """, unsafe_allow_html=True)
+with elements("stats"):
+    with mui.Grid(container=True, spacing=2):
+        karty = [
+            ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
+            ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
+            ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
+            ("Zmienność (Vol)", f"{zmiennosc_proc:.2f}%", KOLOR_NEUTRAL),
+            ("Koncentracja", f"{koncentracja:.0f}%", kolor_konc),
+            ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
+        ]
+        for lab, val, col in karty:
+            with mui.Grid(item=True, xs=True):
+                with mui.Paper(sx={"padding": "15px", "textAlign": "center", "background": KOLOR_TLA_KART, "color": "white", "borderRadius": "8px", "boxShadow": "0 2px 5px rgba(0,0,0,0.2)"}):
+                    mui.Typography(lab, variant="overline", sx={"color": KOLOR_NEUTRAL, "lineHeight": 1, "letterSpacing": "1px"})
+                    mui.Typography(val, variant="h5", sx={"color": col, "fontWeight": "600", "marginTop": "5px"})
 
-st.markdown("<br>", unsafe_allow_html=True) # Mały, kontrolowany odstęp
 st.divider()
 
 # 2. GŁÓWNY WYKRES PORTFELA
