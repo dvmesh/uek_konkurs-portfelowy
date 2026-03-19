@@ -28,8 +28,8 @@ Projekt wymaga środowiska Python w wersji 3.8 lub nowszej.
 
 1. Klonowanie repozytorium:
    ```bash
-   git clone [https://github.com/twoja-nazwa/twoje-repozytorium.git](https://github.com/twoja-nazwa/twoje-repozytorium.git)
-   cd twoje-repozytorium
+   git clone [https://github.com/dvmesh/uek_konkurs-portfelowy]
+   cd uek_konkurs-portfelowy
    ```
 
 2. Instalacja wymaganych bibliotek:
