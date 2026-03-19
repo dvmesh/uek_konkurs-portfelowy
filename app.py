@@ -363,5 +363,3 @@ fig_inst.update_layout(
 st.plotly_chart(fig_inst, use_container_width=True)
 
 st.caption(f"Stan danych: {teraz.strftime('%H:%M:%S')} | Częstotliwość odświeżania: 60s")
-time.sleep(60)
-st.rerun()
