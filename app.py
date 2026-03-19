@@ -284,24 +284,27 @@ with col_left:
         st.dataframe(pd.DataFrame(dane_do_tabeli), column_config={"Cena Start": st.column_config.NumberColumn(format="%.4f"), "Cena LIVE": st.column_config.NumberColumn(format="%.4f"), "Wynik": st.column_config.ProgressColumn("Zysk/Strata", format="%f", min_value=-50, max_value=50)}, use_container_width=True, hide_index=True)
     else: st.info("Brak otwartych pozycji.")
     
-    # RADAR TŁUMU UPCHNIĘTY POD POZYCJAMI (Siatka 2x2)
-    st.write("") # Mały odstęp
+    # RADAR TŁUMU UPCHNIĘTY POD POZYCJAMI (Siatka 2x2) - NAPRAWIONY
+    st.write("") 
     st.subheader("🎯 Radar Tłumu (Analiza Sentymentu)")
     sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY.keys()}
+    
     for g_dane in aktywne_portfele.values():
         for inst, val in g_dane["pozycje"].items():
-            k = MAPOWANIE_PDF.get(inst)
-            if k:
-                if val > 0: sentyment[k]["LONG"] += val
-                elif val < 0: sentyment[k]["SHORT"] += abs(val)
+            if inst in sentyment: # <- Poprawka nazewnictwa, żeby wykrywało pozycje
+                if val > 0: sentyment[inst]["LONG"] += val
+                elif val < 0: sentyment[inst]["SHORT"] += abs(val)
 
-    # Zmiana z 1x4 na 2x2
     fig_pie = make_subplots(rows=2, cols=2, specs=[[{"type": "domain"}, {"type": "domain"}], [{"type": "domain"}, {"type": "domain"}]], subplot_titles=list(sentyment.keys()))
     
     for i, (inst, dane) in enumerate(sentyment.items()):
         row = (i // 2) + 1
         col = (i % 2) + 1
-        fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
+        # Zabezpieczenie: jeśli jakimś cudem nikt nic nie postawił na dany instrument
+        if dane['LONG'] == 0 and dane['SHORT'] == 0:
+            fig_pie.add_trace(go.Pie(labels=['Brak pozycji'], values=[1], marker_colors=[KOLOR_NEUTRAL], hole=.5, textinfo='none'), row=row, col=col)
+        else:
+            fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
     
     for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
     fig_pie.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
@@ -309,7 +312,6 @@ with col_left:
 
 with col_right:
     st.subheader("🏆 Pełny Ranking LIVE")
-    # Dynamiczna wysokość (height=600) pozwala na wyświetlenie pełnego rankingu dopasowanego do lewej kolumny
     st.dataframe(ranking_df, height=600, use_container_width=True, hide_index=False)
 
 st.divider()
