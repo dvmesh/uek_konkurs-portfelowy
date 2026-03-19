@@ -5,9 +5,6 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
-from streamlit_elements import elements, mui
 
 # === KONFIGURACJA UI ===
 st.set_page_config(page_title="Terminal Konkursowy", layout="wide")
@@ -27,7 +24,7 @@ def wczytaj_dane_statyczne():
         with open("dane_statyczne.json", "r") as f:
             return json.load(f)
     except:
-        st.error("Błąd: Brak pliku dane_statyczne.json!")
+        st.error("Blad: Brak pliku dane_statyczne.json!")
         return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
 
 def wczytaj_ustawienia():
@@ -55,7 +52,7 @@ for g_nazwa, g_poz in DANE_GRUP.items():
     aktywne_portfele[g_nazwa] = {
         "kapital_startowy": 100.0,
         "pozycje": {
-            "S&P 500": g_poz.get("SPX", 0.0), "Złoto (Gold)": g_poz.get("GOLD", 0.0),
+            "S&P 500": g_poz.get("SPX", 0.0), "Zloto (Gold)": g_poz.get("GOLD", 0.0),
             "US10Y Yield": g_poz.get("RENT", 0.0), "EUR/USD": g_poz.get("EURUSD", 0.0)
         }
     }
@@ -114,13 +111,13 @@ ranking_df = pd.DataFrame(wyniki_rankingu).sort_values(by="Wynik", ascending=Fal
 ranking_df.index += 1
 lider_konkursu = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
 
-# === 3. UI: WYBÓR GRUPY NA GÓRZE ===
+# === 3. UI: WYBOR GRUPY NA GORZE ===
 lista_grup = sorted(list(aktywne_portfele.keys()))
 idx_domyslny = lista_grup.index(lider_konkursu) if lider_konkursu in lista_grup else 0
 
 col_t, col_w = st.columns([2, 1])
 with col_w:
-    wybrana_grupa = st.selectbox("Wybór portfela:", lista_grup, index=idx_domyslny)
+    wybrana_grupa = st.selectbox("Wybor portfela:", lista_grup, index=idx_domyslny)
 with col_t:
     st.title(f"Widok portfela: {wybrana_grupa}")
 
@@ -144,7 +141,7 @@ for nazwa, wielkosc in pozycje_z_panelu.items():
         
         dane_do_tabeli.append({
             "Instrument": nazwa, "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
-            "Wielkość": wielkosc, "Cena Start": c_start, "Cena LIVE": c_live, "Wynik": wynik_poz
+            "Wielkosc": wielkosc, "Cena Start": c_start, "Cena LIVE": c_live, "Wynik": wynik_poz
         })
         
         seria = wszystkie_historie_zmian[nazwa] * abs(wielkosc) * (1 if wielkosc > 0 else -1)
@@ -153,7 +150,7 @@ for nazwa, wielkosc in pozycje_z_panelu.items():
 stan_konta_na_zywo = kapital_poczatkowy + zysk_laczny
 zmiana_proc_total = (zysk_laczny / kapital_poczatkowy * 100) if kapital_poczatkowy != 0 else 0
 
-# === 5. HISTORIE BENCHMARKÓW ===
+# === 5. HISTORIE BENCHMARKOW ===
 historia_sredniej = pd.DataFrame()
 liczba_grup = len(aktywne_portfele)
 for nazwa_inst in TICKERY.keys():
@@ -198,9 +195,9 @@ with st.sidebar:
         st.info(f"Otwarcie za: {roznica.days}d {roznica.seconds//3600}h")
     else:
         st.success("Sesja rebalansu otwarta")
-        if st.text_input("Hasło autoryzacyjne:", type="password") == "asdqwe123":
+        if st.text_input("Haslo autoryzacyjne:", type="password") == "asdqwe123":
             st.divider()
-            grupa_do_edycji = st.selectbox("Wybierz grupę do edycji:", sorted(list(aktywne_portfele.keys())))
+            grupa_do_edycji = st.selectbox("Wybierz grupe do edycji:", sorted(list(aktywne_portfele.keys())))
             
             aktualny_kap = aktywne_portfele[grupa_do_edycji]["kapital_startowy"]
             aktualne_poz = aktywne_portfele[grupa_do_edycji]["pozycje"]
@@ -210,20 +207,20 @@ with st.sidebar:
                 if k_inst in zmiany_rynkowe:
                     wypracowany_kapital += w_poz * zmiany_rynkowe[k_inst]
                     
-            nk = st.number_input(f"Kapitał wejściowy ({grupa_do_edycji})", value=float(round(wypracowany_kapital, 2)))
+            nk = st.number_input(f"Kapital wejsciowy ({grupa_do_edycji})", value=float(round(wypracowany_kapital, 2)))
             np = {k: st.number_input(k, value=float(aktualne_poz.get(k, 0)), step=5.0) for k in TICKERY.keys()}
             
             if sum(abs(v) for v in np.values()) > nk: 
-                st.error("Limit zaangażowania przekroczony.")
-            elif st.button("Zapisz konfigurację"):
+                st.error("Limit zaangazowania przekroczony.")
+            elif st.button("Zapisz konfiguracje"):
                 ustawienia[grupa_do_edycji] = {"kapital_startowy": nk, "pozycje": np}
                 zapisz_ustawienia(ustawienia)
                 st.cache_data.clear()
-                st.success("Dane zapisane pomyślnie.")
+                st.success("Dane zapisane pomyslnie.")
                 time.sleep(1)
                 st.rerun()
     
-    # CREDITS NA DOLE SIDEBARA
+# CREDITS NA DOLE SIDEBARA
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### Informacje o systemie")
@@ -234,30 +231,28 @@ with st.sidebar:
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
 
-# 1. KARTY STATYSTYK (Przebudowane na natywne kolumny - brak dziury!)
+# 1. KARTY STATYSTYK (Responsywny CSS Grid)
 karty = [
     ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
     ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
     ("Stan konta", f"{stan_konta_na_zywo:.2f}", "#ffffff"),
     ("Stopa zwrotu", f"{zmiana_proc_total:+.2f}%", KOLOR_ZYSK if zmiana_proc_total >= 0 else KOLOR_STRATA),
-    ("Obsunięcie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
+    ("Obsuniecie (MDD)", f"{max_dd_proc:.2f}%", KOLOR_STRATA if max_dd_proc < 0 else KOLOR_NEUTRAL),
     ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
 ]
 
-kolumny = st.columns(6)
-for i, (lab, val, col) in enumerate(karty):
-    with kolumny[i]:
-        st.markdown(f"""
-            <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
-                <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
-            </div>
-        """, unsafe_allow_html=True)
+html_karty = f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 20px;">'
+for lab, val, col in karty:
+    html_karty += f"""
+    <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
+        <div style="color: {col}; font-weight: 600; font-size: 22px; margin-top: 5px;">{val}</div>
+    </div>
+    """
+html_karty += '</div>'
+st.markdown(html_karty, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True) # Mały, kontrolowany odstęp
-st.divider()
-
-# 2. GŁÓWNY WYKRES PORTFELA
+# 2. GLOWNY WYKRES PORTFELA
 st.subheader("Stopa Zwrotu (vs Benchmark)")
 fig = go.Figure()
 if not historia_portfela.empty:
@@ -267,24 +262,23 @@ if not historia_portfela.empty:
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name=wybrana_grupa))
 
     ost_y, kol = total_my.iloc[-1], KOLOR_ZYSK if total_my.iloc[-1] >= 0 else KOLOR_STRATA
-    fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=40, ay=0, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
-    fig.add_trace(go.Scatter(x=[total_my.index[-1]], y=[ost_y], mode='markers', marker=dict(color=kol, size=7), showlegend=False))
+    fig.add_trace(go.Scatter(x=[total_my.index[-1]], y=[ost_y], mode='markers+text', text=[f"<b>{ost_y:+.2f}</b>"], textposition="top center", marker=dict(color=kol, size=7), textfont=dict(color=kol, size=12), showlegend=False))
 
 if not historia_sredniej.empty:
     total_avg = historia_sredniej.ffill().fillna(0).sum(axis=1)
-    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Średnia Konkursu'))
-    ost_y_a = total_avg.iloc[-1]
-    fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
-    fig.add_trace(go.Scatter(x=[total_avg.index[-1]], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
+    fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Srednia Konkursu'))
 
 if not historia_rynku.empty:
     total_rynek = historia_rynku.ffill().fillna(0).sum(axis=1)
-    fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Rynek (Równa Alokacja)'))
-    ost_y_r = total_rynek.iloc[-1]
-    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=45, ay=25, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
-    fig.add_trace(go.Scatter(x=[total_rynek.index[-1]], y=[ost_y_r], mode='markers', marker=dict(color="#38bdf8", size=5), showlegend=False))
+    fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Rynek (Rowna Alokacja)'))
 
-fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+fig.update_layout(
+    template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), # Zredukowane marginesy dla mobile
+    yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), 
+    xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), 
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, bgcolor='rgba(0,0,0,0)'), # Legenda nad wykresem
+    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+)
 st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
@@ -308,19 +302,24 @@ with col_left:
                 if val > 0: sentyment[inst]["LONG"] += val
                 elif val < 0: sentyment[inst]["SHORT"] += abs(val)
 
-    fig_pie = make_subplots(rows=2, cols=2, specs=[[{"type": "domain"}, {"type": "domain"}], [{"type": "domain"}, {"type": "domain"}]], subplot_titles=list(sentyment.keys()))
+    # Responsywne kolumny Streamlita zamiast twardej siatki Plotly
+    pie_cols1 = st.columns(2)
+    pie_cols2 = st.columns(2)
+    wszystkie_kolumny_pie = pie_cols1 + pie_cols2
     
     for i, (inst, dane) in enumerate(sentyment.items()):
-        row = (i // 2) + 1
-        col = (i % 2) + 1
+        fig_pie = go.Figure()
         if dane['LONG'] == 0 and dane['SHORT'] == 0:
-            fig_pie.add_trace(go.Pie(labels=['Brak pozycji'], values=[1], marker_colors=[KOLOR_NEUTRAL], hole=.5, textinfo='none'), row=row, col=col)
+            fig_pie.add_trace(go.Pie(labels=['Brak pozycji'], values=[1], marker_colors=[KOLOR_NEUTRAL], hole=.6, textinfo='none'))
         else:
-            fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
-    
-    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
-    fig_pie.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_pie, use_container_width=True)
+            fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.6, textfont=dict(color='#ffffff')))
+        
+        fig_pie.update_layout(
+            title=dict(text=inst, font=dict(size=14, color=KOLOR_NEUTRAL), x=0.5),
+            template="plotly_dark", height=200, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, 
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        wszystkie_kolumny_pie[i].plotly_chart(fig_pie, use_container_width=True)
 
 with col_right:
     st.subheader("Ranking Konkursowy")
@@ -328,11 +327,11 @@ with col_right:
 
 st.divider()
 
-# 4. WYKRES INSTRUMENTÓW
+# 4. WYKRES INSTRUMENTOW
 st.subheader("Notowania Rynkowe")
 fig_inst = go.Figure()
 
-kolory_inst = {"S&P 500": "#3b82f6", "US10Y Yield": "#a855f7", "Złoto (Gold)": "#eab308", "EUR/USD": "#06b6d4"}
+kolory_inst = {"S&P 500": "#3b82f6", "US10Y Yield": "#a855f7", "Zloto (Gold)": "#eab308", "EUR/USD": "#06b6d4"}
 
 for nazwa, seria in wszystkie_historie_zmian.items():
     if not seria.empty:
@@ -344,14 +343,14 @@ for nazwa, seria in wszystkie_historie_zmian.items():
         fig_inst.add_trace(go.Scatter(x=[seria_czysta.index[-1]], y=[ost_y_inst], mode='markers', marker=dict(color=kolor, size=6), showlegend=False, hoverinfo='skip'))
 
 fig_inst.update_layout(
-    template="plotly_dark", height=350, margin=dict(l=10, r=20, t=10, b=10),
+    template="plotly_dark", height=350, margin=dict(l=0, r=0, t=30, b=0), # Zredukowane marginesy
     yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.2)', gridcolor='rgba(255, 255, 255, 0.05)', title="Zmiana (%)"),
     xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor='rgba(0,0,0,0)'),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, bgcolor='rgba(0,0,0,0)'),
     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
 )
 st.plotly_chart(fig_inst, use_container_width=True)
 
-st.caption(f"Stan danych: {teraz.strftime('%H:%M:%S')} | Częstotliwość odświeżania: 60s")
+st.caption(f"Stan danych: {teraz.strftime('%H:%M:%S')} | Czestotliwosc odswiezania: 60s")
 time.sleep(60)
 st.rerun()
