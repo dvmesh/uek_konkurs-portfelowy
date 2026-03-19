@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
+from streamlit_elements import elements, mui
 
 # === KONFIGURACJA UI ===
 st.set_page_config(page_title="Terminal Konkursowy", layout="wide")
@@ -23,7 +24,7 @@ PLIK_USTAWIEN = "portfel.json"
 
 def wczytaj_dane_statyczne():
     try:
-        with open("dane_statyczne.json", "r", encoding="utf-8") as f:
+        with open("dane_statyczne.json", "r") as f:
             return json.load(f)
     except:
         st.error("Błąd: Brak pliku dane_statyczne.json!")
@@ -32,13 +33,13 @@ def wczytaj_dane_statyczne():
 def wczytaj_ustawienia():
     if os.path.exists(PLIK_USTAWIEN):
         try:
-            with open(PLIK_USTAWIEN, "r", encoding="utf-8") as f:
+            with open(PLIK_USTAWIEN, "r") as f:
                 return json.load(f)
         except: pass
     return {}
 
 def zapisz_ustawienia(ustawienia):
-    with open(PLIK_USTAWIEN, "w", encoding="utf-8") as f:
+    with open(PLIK_USTAWIEN, "w") as f:
         json.dump(ustawienia, f)
 
 dane_stat = wczytaj_dane_statyczne()
@@ -222,17 +223,18 @@ with st.sidebar:
                 time.sleep(1)
                 st.rerun()
     
+    # CREDITS NA DOLE SIDEBARA
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### Informacje o systemie")
     st.markdown("**Autor:** Antoni Bulsiewicz")
-    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy)")
+    st.markdown("[Repozytorium GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy")
 
 # ==========================================
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
 
-# 1. KARTY STATYSTYK (Responsywny CSS Grid)
+# 1. KARTY STATYSTYK (Przebudowane na natywne kolumny - brak dziury!)
 karty = [
     ("Start", f"{kapital_poczatkowy:.2f}", KOLOR_NEUTRAL),
     ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
@@ -242,16 +244,18 @@ karty = [
     ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}", KOLOR_ZOLTY if moje_miejsce <=3 else "#ffffff")
 ]
 
-html_karty = f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">'
-for lab, val, col in karty:
-    html_karty += f"""
-    <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-        <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
-        <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
-    </div>
-    """
-html_karty += '</div>'
-st.markdown(html_karty, unsafe_allow_html=True)
+kolumny = st.columns(6)
+for i, (lab, val, col) in enumerate(karty):
+    with kolumny[i]:
+        st.markdown(f"""
+            <div style="padding: 15px; text-align: center; background: {KOLOR_TLA_KART}; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                <div style="color: {KOLOR_NEUTRAL}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">{lab}</div>
+                <div style="color: {col}; font-weight: 600; font-size: 24px; margin-top: 5px;">{val}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True) # Mały, kontrolowany odstęp
+st.divider()
 
 # 2. GŁÓWNY WYKRES PORTFELA
 st.subheader("Stopa Zwrotu (vs Benchmark)")
@@ -263,30 +267,24 @@ if not historia_portfela.empty:
     fig.add_trace(go.Scatter(x=total_my.index, y=total_my, line=dict(color='#e5e7eb', width=2.5), name=wybrana_grupa))
 
     ost_y, kol = total_my.iloc[-1], KOLOR_ZYSK if total_my.iloc[-1] >= 0 else KOLOR_STRATA
-    fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=30, ay=-20, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
+    fig.add_annotation(x=total_my.index[-1], y=ost_y, text=f"<b>{ost_y:+.2f}</b>", showarrow=True, arrowhead=0, arrowcolor=kol, ax=40, ay=0, font=dict(color=kol, size=13), bgcolor="rgba(38, 39, 48, 0.8)", bordercolor=kol, borderpad=3)
     fig.add_trace(go.Scatter(x=[total_my.index[-1]], y=[ost_y], mode='markers', marker=dict(color=kol, size=7), showlegend=False))
 
 if not historia_sredniej.empty:
     total_avg = historia_sredniej.ffill().fillna(0).sum(axis=1)
     fig.add_trace(go.Scatter(x=total_avg.index, y=total_avg, line=dict(color='rgba(251, 191, 36, 0.6)', width=1.5, dash='dot'), name='Średnia Konkursu'))
     ost_y_a = total_avg.iloc[-1]
-    fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=30, ay=10, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_annotation(x=total_avg.index[-1], y=ost_y_a, text=f"Śr: {ost_y_a:+.2f}", showarrow=True, arrowhead=0, arrowcolor=KOLOR_ZOLTY, ax=45, ay=-25, font=dict(size=11, color=KOLOR_ZOLTY), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_avg.index[-1]], y=[ost_y_a], mode='markers', marker=dict(color=KOLOR_ZOLTY, size=5), showlegend=False))
 
 if not historia_rynku.empty:
     total_rynek = historia_rynku.ffill().fillna(0).sum(axis=1)
     fig.add_trace(go.Scatter(x=total_rynek.index, y=total_rynek, line=dict(color='#38bdf8', width=1.5, dash='dash'), name='Rynek (Równa Alokacja)'))
     ost_y_r = total_rynek.iloc[-1]
-    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=30, ay=35, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
+    fig.add_annotation(x=total_rynek.index[-1], y=ost_y_r, text=f"Rynek: {ost_y_r:+.2f}", showarrow=True, arrowhead=0, arrowcolor="#38bdf8", ax=45, ay=25, font=dict(size=11, color="#38bdf8"), bgcolor="rgba(38, 39, 48, 0.6)")
     fig.add_trace(go.Scatter(x=[total_rynek.index[-1]], y=[ost_y_r], mode='markers', marker=dict(color="#38bdf8", size=5), showlegend=False))
 
-fig.update_layout(
-    template="plotly_dark", height=450, margin=dict(l=10, r=50, t=10, b=10), 
-    yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), 
-    xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, bgcolor='rgba(0,0,0,0)'),
-    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-)
+fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=80, t=10, b=10), yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.1)', gridcolor='rgba(255, 255, 255, 0.05)'), xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
@@ -320,8 +318,8 @@ with col_left:
         else:
             fig_pie.add_trace(go.Pie(labels=['LONG', 'SHORT'], values=[dane['LONG'], dane['SHORT']], marker_colors=[KOLOR_ZYSK, KOLOR_STRATA], textinfo='percent', hole=.5, textfont=dict(color='#ffffff')), row=row, col=col)
     
-    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=12, color=KOLOR_NEUTRAL)
-    fig_pie.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=30, b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    for ann in fig_pie['layout']['annotations']: ann['font'] = dict(size=13, color=KOLOR_NEUTRAL)
+    fig_pie.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=40, b=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig_pie, use_container_width=True)
 
 with col_right:
@@ -349,7 +347,7 @@ fig_inst.update_layout(
     template="plotly_dark", height=350, margin=dict(l=10, r=20, t=10, b=10),
     yaxis=dict(zeroline=True, zerolinecolor='rgba(255, 255, 255, 0.2)', gridcolor='rgba(255, 255, 255, 0.05)', title="Zmiana (%)"),
     xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, bgcolor='rgba(0,0,0,0)'),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor='rgba(0,0,0,0)'),
     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
 )
 st.plotly_chart(fig_inst, use_container_width=True)
