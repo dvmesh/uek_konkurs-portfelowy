@@ -170,13 +170,13 @@ for nazwa_inst in TICKERY.keys():
         historia_rynku = pd.DataFrame(seria_rynek) if historia_rynku.empty else historia_rynku.join(seria_rynek.rename(nazwa_inst), how='outer')
 
 # === 6. ALFA I SKUTECZNOŚĆ ===
-# Obliczanie średniego wyniku konkursu do kalkulacji Alfy
-wynik_sredniej = sum(g["Wynik"] for g in wyniki_rankingu) / len(wyniki_rankingu) if wyniki_rankingu else 100.0
-kapital_sredniej = sum(aktywne_portfele[g]["kapital_startowy"] for g in aktywne_portfele) / len(aktywne_portfele) if aktywne_portfele else 100.0
-zmiana_proc_srednia = ((wynik_sredniej - kapital_sredniej) / kapital_sredniej * 100) if kapital_sredniej > 0 else 0.0
+# Rynkowa stopa zwrotu: symulacja portfela 4x25 jednostek
+zysk_rynku = sum(25.0 * zmiana for zmiana in zmiany_rynkowe.values())
+# Ponieważ kapitał bazowy dla czystego rynku to teoretyczne 100, zysk w j.p. odpowiada zmianie procentowej
+zmiana_proc_rynku = zysk_rynku 
 
-# Alfa = Nasza stopa zwrotu minus średnia stopa zwrotu
-alfa_proc = zmiana_proc_total - zmiana_proc_srednia
+# Alfa = Nasza stopa zwrotu minus stopa zwrotu rynku (4x25)
+alfa_proc = zmiana_proc_total - zmiana_proc_rynku
 
 # Obliczanie skuteczności (procent pozycji, które przynoszą zysk)
 zwyciestwa = sum(1 for poz in dane_do_tabeli if poz["Wynik"] > 0)
