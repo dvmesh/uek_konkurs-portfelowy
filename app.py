@@ -144,13 +144,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
     font-family: var(--font-mono); font-size: 12px; font-weight: 600;
     min-width: 50px; text-align: right;
 }}
-.pos-tag {{
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 10px; border-radius: 6px; font-family: var(--font-mono);
-    font-size: 12px; font-weight: 600; border: 1px solid var(--border);
-    background: var(--bg2);
-}}
-.pos-tag .dir {{ font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -288,27 +282,6 @@ def render_stat_cards(karty):
     st.markdown(html, unsafe_allow_html=True)
 
 
-def render_pozycje_tagi(dane_tabeli):
-    """Pozycje jako kolorowe tagi zamiast tabeli."""
-    if not dane_tabeli:
-        st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:12px;">Brak otwartych pozycji — portfel w gotówce.</div>', unsafe_allow_html=True)
-        return
-    html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0;">'
-    for p in dane_tabeli:
-        kol = C["gain"] if p["Wynik"] > 0 else (C["loss"] if p["Wynik"] < 0 else C["muted"])
-        dir_txt = "LONG" if p["Kierunek"] == "LONG" else "SHORT"
-        dir_col = C["gain"] if dir_txt == "LONG" else C["loss"]
-        html += f"""
-            <div class="pos-tag" style="border-color:{kol}40;">
-                <span class="dir" style="color:{dir_col};">{dir_txt}</span>
-                <span style="color:{C["text"]};">{skrot_inst(p["Instrument"])}</span>
-                <span style="color:{C["muted"]};">×{abs(p["Wielkość"]):.0f}</span>
-                <span style="color:{kol};margin-left:4px;font-size:11px;">{p["Wynik"]:+.2f}</span>
-            </div>"""
-    html += '</div>'
-    st.markdown(html, unsafe_allow_html=True)
-
-
 def render_sentyment_bars(sentyment):
     """Horizontal stacked bars zamiast pie chartów."""
     html = '<div style="padding:4px 0;">'
@@ -372,7 +345,7 @@ def render_ranking_html(ranking_df, wybrana, portfele):
             f'</div></a>'
         )
 
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(f'<div style="max-height:520px;overflow-y:auto;padding-right:4px;">{html}</div>', unsafe_allow_html=True)
 
 
 def render_overlay_zamkniecia(ranking, grupy_cash, teraz, portfele):
@@ -440,11 +413,10 @@ def render_overlay_zamkniecia(ranking, grupy_cash, teraz, portfele):
             unsafe_allow_html=True)
 
     if teraz.weekday() in (4, 5):
-        nd = teraz + timedelta(days=(6 - teraz.weekday()))
         _cw = C["warn"]
         st.markdown(
             f'<div style="margin-top:14px;text-align:center;color:{_cw};font-size:12px;">'
-            f'Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>',
+            f'Okno rebalansu otwarte (pt 22:00 — nd 23:00)</div>',
             unsafe_allow_html=True)
     elif teraz.weekday() == 6 and teraz.hour < 23:
         _cg = C["gain"]
@@ -497,7 +469,6 @@ def dark_layout(**kw):
 
 dane_stat = wczytaj_dane_statyczne()
 TICKERY = dane_stat.get("TICKERY", {})
-MAPOWANIE_PDF = dane_stat.get("MAPOWANIE_PDF", {})
 DANE_GRUP = dane_stat.get("DANE_GRUP", {})
 ustawienia = wczytaj_ustawienia()
 
@@ -515,11 +486,7 @@ for g_nazwa, g_dane in ustawienia.items():
 teraz = datetime.now(TZ_WARSAW)
 ostatni_pon = teraz - timedelta(days=teraz.weekday())
 data_startu_str = ostatni_pon.strftime('%Y-%m-%d')
-dni_do_nd = 6 - teraz.weekday()
-nd = teraz + timedelta(days=dni_do_nd)
-deadline = nd.replace(hour=23, minute=0, second=0, microsecond=0)
-if teraz > deadline: deadline += timedelta(days=7)
-roznica = deadline - teraz
+
 # Rebalans dostepny od piatku 22:00 do niedzieli 23:00
 czy_rebalans = (
     (teraz.weekday() == 4 and teraz.hour >= 22) or  # piatek po zamknieciu
@@ -575,7 +542,10 @@ for gn, gd in aktywne_portfele.items():
 
 ranking_df = pd.DataFrame(wyniki).sort_values("Wynik", ascending=False).reset_index(drop=True)
 ranking_df.index += 1
-w_lidera = ranking_df.iloc[0]["Wynik"] if not ranking_df.empty else 100.0
+if ranking_df.empty:
+    st.error("Brak danych do rankingu.")
+    st.stop()
+w_lidera = ranking_df.iloc[0]["Wynik"]
 ranking_df["Dystans do #1"] = round(ranking_df["Wynik"] - w_lidera, 4)
 lider = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
 
@@ -673,7 +643,8 @@ with st.sidebar:
                 try:
                     with open(PLIK_LOGU,"r",encoding="utf-8") as f: ld=json.load(f)
                     pd.DataFrame([{"Czas":w["timestamp"],"Grupa":w["grupa"],**{k:w["nowe"].get("pozycje",{}).get(k,"") for k in TICKERY}} for w in ld]).to_excel(wr, sheet_name='Log', index=False)
-                except: pass
+                except Exception:
+                    pass
         st.download_button("Pobierz", data=buf.getvalue(),
             file_name=f"ranking_{teraz.strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -688,9 +659,6 @@ if gielda_off:
     wk = ostatni_pon.strftime('%Y-%m-%d')
     if st.session_state.get("_ow") != wk:
         st.session_state["_oh"] = False; st.session_state["_ow"] = wk
-    # Dismiss via link: ?ov=0
-    if st.query_params.get("ov") == "0":
-        st.session_state["_oh"] = True
     if not st.session_state.get("_oh", False):
         render_overlay_zamkniecia(ranking_df, grupy_cash, teraz, aktywne_portfele)
 
@@ -729,10 +697,7 @@ else:
     elif moje_m > st.session_state[ks]: st.toast(f"Spadek: {wybrana} → #{moje_m}")
     st.session_state[ks] = moje_m
 
-hk = f"hp_{wybrana}"
-if hk not in st.session_state: st.session_state[hk] = []
-st.session_state[hk].append({"t": teraz.strftime('%H:%M'), "m": moje_m})
-if len(st.session_state[hk]) > 120: st.session_state[hk] = st.session_state[hk][-120:]
+
 
 
 
@@ -748,7 +713,7 @@ if grupy_cash:
     render_banner_cash(grupy_cash)
 
 # 1. STAT CARDS
-pos_label = f"#{moje_m}" if moje_m <= 3 else f"#{moje_m}"
+pos_label = f"#{moje_m}"
 pos_sub = "z " + str(len(ranking_df))
 dist = ranking_df.loc[ranking_df["Grupa"]==wybrana, "Dystans do #1"].values
 dist_val = dist[0] if len(dist) else 0
@@ -777,9 +742,12 @@ if not hr.empty:
     tr = hr.sum(axis=1)
     dodaj_serie_z_etykieta(fig, tr.index, tr, 'Rynek (4×25)', color=C["info"],
                            width=1.5, dash='dash', ax=45, ay=25, marker_size=5, label_prefix="Mkt: ")
-fig.update_layout(**dark_layout(height=420, margin=dict(l=10, r=80, t=10, b=10),
-    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)')))
-st.plotly_chart(fig, use_container_width=True)
+if not hp.empty or not ha.empty or not hr.empty:
+    fig.update_layout(**dark_layout(height=420, margin=dict(l=10, r=80, t=10, b=10),
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)')))
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:30px 0;text-align:center;">Brak danych do wykresu — portfel w gotowce lub dane niedostepne.</div>', unsafe_allow_html=True)
 
 
 # 4. TRZY KOLUMNY: WATERFALL | SENTYMENT | RANKING
