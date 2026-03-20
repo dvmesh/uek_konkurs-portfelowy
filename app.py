@@ -598,60 +598,6 @@ with col_t:
 if wybrana != _param_g:
     st.query_params["g"] = wybrana
 
-# === OVERLAY ===
-gielda_off = czy_gielda_zamknieta(teraz)
-grupy_cash = znajdz_grupy_w_cashu(aktywne_portfele)
-if gielda_off:
-    wk = ostatni_pon.strftime('%Y-%m-%d')
-    if st.session_state.get("_ow") != wk:
-        st.session_state["_oh"] = False; st.session_state["_ow"] = wk
-    # Dismiss via link: ?ov=0
-    if st.query_params.get("ov") == "0":
-        st.session_state["_oh"] = True
-    if not st.session_state.get("_oh", False):
-        render_overlay_zamkniecia(ranking_df, grupy_cash, teraz, aktywne_portfele)
-
-# === OBLICZENIA PORTFELA ===
-kap = float(aktywne_portfele[wybrana]["kapital_startowy"])
-poz = aktywne_portfele[wybrana]["pozycje"]
-zysk = 0.0; dane_tab = []; wklady = {}
-
-for nazwa, wiel in poz.items():
-    if wiel != 0 and nazwa in zmiany:
-        wp = wiel * zmiany[nazwa]
-        zysk += wp; wklady[nazwa] = wp
-        h = cache_rynk.get(nazwa, pd.DataFrame())
-        dane_tab.append({"Instrument": nazwa, "Kierunek": "LONG" if wiel > 0 else "SHORT",
-                         "Wielkość": wiel,
-                         "Cena Start": h['Open'].iloc[0] if not h.empty else 0,
-                         "Cena LIVE": h['Close'].iloc[-1] if not h.empty else 0,
-                         "Wynik": wp})
-
-stan = kap + zysk
-zm_prc = (zysk / kap * 100) if kap != 0 else 0
-hp = buduj_historie_z_serii(poz, hist_all)
-ha = buduj_historie_z_serii(sr_wagi, hist_all)
-hr = buduj_historie_z_serii({n: 25.0 for n in TICKERY}, hist_all)
-alfa = zm_prc - sum(25.0*z for z in zmiany.values())
-wins = sum(1 for p in dane_tab if p["Wynik"] > 0)
-n_poz = len(dane_tab)
-hit = (wins/n_poz*100) if n_poz > 0 else 0.0
-mdd = (oblicz_max_drawdown(hp.sum(axis=1)+kap)/kap*100) if not hp.empty and kap!=0 else 0.0
-
-moje_m = ranking_df[ranking_df['Grupa']==wybrana].index[0] if wybrana in ranking_df['Grupa'].values else 0
-ks = f"pm_{wybrana}"
-if ks not in st.session_state: st.session_state[ks] = moje_m
-else:
-    if moje_m < st.session_state[ks]: st.toast(f"Awans: {wybrana} → #{moje_m}")
-    elif moje_m > st.session_state[ks]: st.toast(f"Spadek: {wybrana} → #{moje_m}")
-    st.session_state[ks] = moje_m
-
-hk = f"hp_{wybrana}"
-if hk not in st.session_state: st.session_state[hk] = []
-st.session_state[hk].append({"t": teraz.strftime('%H:%M'), "m": moje_m})
-if len(st.session_state[hk]) > 120: st.session_state[hk] = st.session_state[hk][-120:]
-
-
 # ==========================================
 # ====== SIDEBAR ===========================
 # ==========================================
@@ -723,6 +669,61 @@ with st.sidebar:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     st.markdown(f'<div style="margin-top:40px;padding-top:12px;border-top:1px solid {C["border"]};"><div style="color:{C["muted"]};font-size:11px;">Antoni Bulsiewicz · <a href="https://github.com/dvmesh/uek_konkurs-portfelowy" style="color:{C["info"]};">GitHub</a></div></div>', unsafe_allow_html=True)
+
+
+# === OVERLAY ===
+gielda_off = czy_gielda_zamknieta(teraz)
+grupy_cash = znajdz_grupy_w_cashu(aktywne_portfele)
+if gielda_off:
+    wk = ostatni_pon.strftime('%Y-%m-%d')
+    if st.session_state.get("_ow") != wk:
+        st.session_state["_oh"] = False; st.session_state["_ow"] = wk
+    # Dismiss via link: ?ov=0
+    if st.query_params.get("ov") == "0":
+        st.session_state["_oh"] = True
+    if not st.session_state.get("_oh", False):
+        render_overlay_zamkniecia(ranking_df, grupy_cash, teraz, aktywne_portfele)
+
+# === OBLICZENIA PORTFELA ===
+kap = float(aktywne_portfele[wybrana]["kapital_startowy"])
+poz = aktywne_portfele[wybrana]["pozycje"]
+zysk = 0.0; dane_tab = []; wklady = {}
+
+for nazwa, wiel in poz.items():
+    if wiel != 0 and nazwa in zmiany:
+        wp = wiel * zmiany[nazwa]
+        zysk += wp; wklady[nazwa] = wp
+        h = cache_rynk.get(nazwa, pd.DataFrame())
+        dane_tab.append({"Instrument": nazwa, "Kierunek": "LONG" if wiel > 0 else "SHORT",
+                         "Wielkość": wiel,
+                         "Cena Start": h['Open'].iloc[0] if not h.empty else 0,
+                         "Cena LIVE": h['Close'].iloc[-1] if not h.empty else 0,
+                         "Wynik": wp})
+
+stan = kap + zysk
+zm_prc = (zysk / kap * 100) if kap != 0 else 0
+hp = buduj_historie_z_serii(poz, hist_all)
+ha = buduj_historie_z_serii(sr_wagi, hist_all)
+hr = buduj_historie_z_serii({n: 25.0 for n in TICKERY}, hist_all)
+alfa = zm_prc - sum(25.0*z for z in zmiany.values())
+wins = sum(1 for p in dane_tab if p["Wynik"] > 0)
+n_poz = len(dane_tab)
+hit = (wins/n_poz*100) if n_poz > 0 else 0.0
+mdd = (oblicz_max_drawdown(hp.sum(axis=1)+kap)/kap*100) if not hp.empty and kap!=0 else 0.0
+
+moje_m = ranking_df[ranking_df['Grupa']==wybrana].index[0] if wybrana in ranking_df['Grupa'].values else 0
+ks = f"pm_{wybrana}"
+if ks not in st.session_state: st.session_state[ks] = moje_m
+else:
+    if moje_m < st.session_state[ks]: st.toast(f"Awans: {wybrana} → #{moje_m}")
+    elif moje_m > st.session_state[ks]: st.toast(f"Spadek: {wybrana} → #{moje_m}")
+    st.session_state[ks] = moje_m
+
+hk = f"hp_{wybrana}"
+if hk not in st.session_state: st.session_state[hk] = []
+st.session_state[hk].append({"t": teraz.strftime('%H:%M'), "m": moje_m})
+if len(st.session_state[hk]) > 120: st.session_state[hk] = st.session_state[hk][-120:]
+
 
 
 # ==========================================
