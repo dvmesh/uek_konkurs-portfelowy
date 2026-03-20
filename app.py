@@ -416,47 +416,29 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
             f'</a>'
         )
 
-    poz_w = ""
-    if wybrana in ranking["Grupa"].values:
-        idx = ranking[ranking["Grupa"]==wybrana].index[0]
-        wr = ranking.loc[idx]
-        wz = wr["Wynik"]-100
-        wk = C["gain"] if wz >= 0 else C["loss"]
-        _cw = C["warn"]
-        _ct2 = C["text2"]
-        poz_w = (
-            f'<div style="margin-top:16px;padding:14px 16px;'
-            f'background:{_cw}10;border:1px solid {_cw}40;'
-            f'border-radius:10px;text-align:center;">'
-            f'<div style="color:{_ct2};font-size:10px;'
-            f'text-transform:uppercase;letter-spacing:1px;">Twoja grupa</div>'
-            f'<div style="font-size:18px;margin:4px 0;">'
-            f'<b>{wybrana}</b> — #{idx} / {len(ranking)}</div>'
-            f'<div style="color:{wk};font-size:15px;font-weight:600;'
-            f'font-family:var(--font-mono);">'
-            f'{wr["Wynik"]:.2f} ({wz:+.2f}%)</div></div>'
-        )
-
     cash_h = ""
     if grupy_cash:
         lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
         _cl = C["loss"]
+        _ct2 = C["text2"]
+        _mut = C["muted"]
         cash_h = (
             f'<div style="margin-top:16px;padding:14px 16px;'
             f'background:{_cl}10;border:1px solid {_cl}40;border-radius:10px;">'
             f'<div style="font-size:13px;color:{_cl};margin-bottom:4px;">'
             f'<b>Grupy w CASH:</b></div>'
-            f'<div style="color:{C["text2"]};font-size:12px;">{lista}</div>'
-            f'<div style="color:{C["muted"]};font-size:11px;margin-top:6px;">'
+            f'<div style="color:{_ct2};font-size:12px;">{lista}</div>'
+            f'<div style="color:{_mut};font-size:11px;margin-top:6px;">'
             f'Zgloście rebalans przed niedziela 23:00!</div></div>'
         )
 
     dl = ""
     if teraz.weekday() in (4,5):
         nd = teraz + timedelta(days=(6-teraz.weekday()))
+        _cw = C["warn"]
         dl = (
             f'<div style="margin-top:14px;text-align:center;'
-            f'color:{C["warn"]};font-size:12px;">'
+            f'color:{_cw};font-size:12px;">'
             f'Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
         )
     elif teraz.weekday() == 6 and teraz.hour < 23:
@@ -475,7 +457,11 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
     _txt2 = C["text2"]
 
     overlay_html = f"""
-    <style>.overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}</style>
+    <style>
+    .overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}
+    #ov-close-x:hover {{ color: #ffffff !important; }}
+    #ov-close-btn:hover {{ background: rgba(255,255,255,0.12) !important; }}
+    </style>
     <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;
         z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);
         display:flex;align-items:center;justify-content:center;">
@@ -483,9 +469,9 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
             padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;
             box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;
             font-family:var(--font-sans);">
-            <div style="position:absolute;top:14px;right:18px;cursor:pointer;
-                color:{_mut};font-size:20px;"
-                onclick="document.getElementById('overlay-zamkniecie').style.display='none'">x</div>
+            <div id="ov-close-x" style="position:absolute;top:14px;right:18px;cursor:pointer;
+                color:{_mut};font-size:20px;padding:4px 8px;border-radius:6px;
+                transition:color 0.15s;">x</div>
             <div style="text-align:center;margin-bottom:20px;">
                 <div style="font-size:20px;font-weight:700;color:{_txt};">Gielda zamknieta</div>
                 <div style="color:{_mut};font-size:12px;margin-top:4px;">
@@ -494,17 +480,24 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
             <div style="color:{_txt2};font-size:10px;text-transform:uppercase;
                 letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>
             {top3_html}
-            {poz_w}
             {cash_h}
             {dl}
-            <div style="display:block;width:100%;margin-top:22px;padding:12px;
+            <div id="ov-close-btn" style="display:block;width:100%;margin-top:22px;padding:12px;
                 background:rgba(255,255,255,0.06);border:1px solid {_brd};
                 border-radius:10px;color:{_txt};font-size:13px;cursor:pointer;
-                font-family:var(--font-sans);font-weight:600;text-align:center;"
-                onclick="document.getElementById('overlay-zamkniecie').style.display='none'">
-                Przejdz do Terminala</div>
+                font-family:var(--font-sans);font-weight:600;text-align:center;
+                transition:background 0.15s;">Zamknij</div>
         </div>
-    </div>"""
+    </div>
+    <script>
+        (function() {{
+            var ov = document.getElementById('overlay-zamkniecie');
+            var closeX = document.getElementById('ov-close-x');
+            var closeBtn = document.getElementById('ov-close-btn');
+            if (closeX) closeX.addEventListener('click', function() {{ ov.style.display = 'none'; }});
+            if (closeBtn) closeBtn.addEventListener('click', function() {{ ov.style.display = 'none'; }});
+        }})();
+    </script>"""
 
     st.markdown(overlay_html, unsafe_allow_html=True)
 
