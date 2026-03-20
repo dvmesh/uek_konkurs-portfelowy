@@ -83,7 +83,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 }}
 .ticker-strip {{
     display: flex; gap: 24px; padding: 10px 0;
-    border-bottom: 1px solid var(--border); margin-bottom: 18px;
     overflow-x: auto; flex-wrap: nowrap;
 }}
 .ticker-item {{
@@ -553,7 +552,6 @@ lider = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
 # === UI: SELEKTOR ===
 lista_grup = sorted(aktywne_portfele.keys())
 
-# Odczyt grupy z URL (klik w ranking)
 _param_g = st.query_params.get("g", "")
 if _param_g and _param_g in lista_grup:
     idx_def = lista_grup.index(_param_g)
@@ -562,16 +560,24 @@ elif lider in lista_grup:
 else:
     idx_def = 0
 
+# Selectbox renderowany nizej, w rzedzie z ticker strip
+
+# Selectbox musi byc PRZED overlay (bo st.stop())
+col_prices, col_sel = st.columns([3, 1])
+with col_prices:
+    render_ticker_strip(cache_rynk, zmiany)
+with col_sel:
+    wybrana = st.selectbox("Portfel", lista_grup, index=idx_def, label_visibility="collapsed")
+
+if wybrana != _param_g:
+    st.query_params["g"] = wybrana
+
+
 # ==========================================
-# ====== SIDEBAR ===========================
+# ====== SIDEBAR (admin only) ==============
 # ==========================================
 
-with st.sidebar:
-    # -- Selektor grupy na gorze sidebara --
-    wybrana = st.selectbox("Portfel", lista_grup, index=idx_def)
-    st.divider()
-
-# Pozycja w rankingu (potrzebne do headera i kart)
+# Pozycja w rankingu (potrzebne do kart i selectora)
 moje_m = ranking_df[ranking_df['Grupa']==wybrana].index[0] if wybrana in ranking_df['Grupa'].values else 0
 ks = f"pm_{wybrana}"
 if ks not in st.session_state: st.session_state[ks] = moje_m
@@ -580,7 +586,6 @@ else:
     elif moje_m > st.session_state[ks]: st.toast(f"Spadek: {wybrana} -> #{moje_m}")
     st.session_state[ks] = moje_m
 
-# Reszta sidebara
 with st.sidebar:
 
     st.header("Panel Administratora")
@@ -656,33 +661,6 @@ with st.sidebar:
 
     st.markdown(f'<div style="margin-top:40px;padding-top:12px;border-top:1px solid {C["border"]};"><div style="color:{C["muted"]};font-size:11px;">Antoni Bulsiewicz · <a href="https://github.com/dvmesh/uek_konkurs-portfelowy" style="color:{C["info"]};">GitHub</a></div></div>', unsafe_allow_html=True)
 
-# Sync query param
-if wybrana != _param_g:
-    st.query_params["g"] = wybrana
-
-# Wstrzyknij nazwe grupy do fixowanego headera Streamlita
-_muted = C["muted"]
-_txt = C["text"]
-_warn = C["warn"]
-_pos_col = _warn if moje_m <= 3 else _txt
-st.markdown(
-    f'<style>'
-    f'[data-testid="stHeader"] {{'
-    f'  background: {C["bg1"]} !important;'
-    f'  border-bottom: 1px solid {C["border"]} !important;'
-    f'}}'
-    f'.header-group-label {{'
-    f'  position: fixed; top: 6px; left: 50%; transform: translateX(-50%);'
-    f'  z-index: 999; display: flex; align-items: center; gap: 12px;'
-    f'  font-family: var(--font-sans); pointer-events: none;'
-    f'}}'
-    f'</style>'
-    f'<div class="header-group-label">'
-    f'  <span style="font-size:15px;font-weight:700;color:{_txt};">{wybrana}</span>'
-    f'  <span style="font-family:var(--font-mono);font-size:12px;color:{_pos_col};">#{moje_m}/{len(ranking_df)}</span>'
-    f'</div>',
-    unsafe_allow_html=True)
-
 
 # === OVERLAY ===
 gielda_off = czy_gielda_zamknieta(teraz)
@@ -722,15 +700,9 @@ hit = (wins/n_poz*100) if n_poz > 0 else 0.0
 mdd = (oblicz_max_drawdown(hp.sum(axis=1)+kap)/kap*100) if not hp.empty and kap!=0 else 0.0
 
 
-
-
-
 # ==========================================
 # ====== MAIN UI ===========================
 # ==========================================
-
-# 0. TICKER STRIP
-render_ticker_strip(cache_rynk, zmiany)
 
 # 0.5 CASH BANNER
 if grupy_cash:
@@ -817,9 +789,6 @@ with c2:
 with c3:
     section_label("Ranking")
     render_ranking_html(ranking_df, wybrana, aktywne_portfele)
-
-
-
 
 # FOOTER
 st.markdown(f'<div style="text-align:center;padding:16px 0;color:{C["muted"]};font-size:11px;font-family:var(--font-mono);">LIVE · {teraz.strftime("%H:%M:%S")} Warsaw · 60s refresh</div>', unsafe_allow_html=True)
