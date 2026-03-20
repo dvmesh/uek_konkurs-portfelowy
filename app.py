@@ -341,7 +341,7 @@ def render_sentyment_bars(sentyment):
 
 
 def render_ranking_html(ranking_df, wybrana, portfele):
-    """Custom HTML ranking — kliknij wiersz, żeby przełączyć grupę."""
+    """Custom HTML ranking — kliknij wiersz, zeby przelaczc grupe."""
     html = ''
     for i, (idx, row) in enumerate(ranking_df.iterrows()):
         nazwa = row["Grupa"]
@@ -351,7 +351,6 @@ def render_ranking_html(ranking_df, wybrana, portfele):
         kol = C["gain"] if zm >= 0 else C["loss"]
         is_selected = nazwa == wybrana
 
-        # Position badge
         if i == 0: bg, fg = C["warn"], "#000"
         elif i == 1: bg, fg = C["bg3"], C["text"]
         elif i == 2: bg, fg = "#92400e", "#fbbf24"
@@ -362,26 +361,25 @@ def render_ranking_html(ranking_df, wybrana, portfele):
         sel_bg = f"background:{_cw}08;" if is_selected else ""
 
         dist_txt = "" if i == 0 else f"{dystans:+.2f}"
-
-        # Encode group name for URL safety
         encoded = urllib.parse.quote(nazwa)
 
-        html += f"""
-            <div class="rank-row" style="{sel_border}{sel_bg}"
-                 onclick="window.location.search='?g={encoded}';"
-                 title="Kliknij, aby przejsc do {nazwa}">
-                <div class="rank-pos" style="background:{bg};color:{fg};">{idx}</div>
-                <div class="rank-name">{nazwa}{'  ◄' if is_selected else ''}</div>
-                <div class="rank-score" style="color:{kol};">{wynik:.2f}</div>
-                <div class="rank-dist">{dist_txt}</div>
-            </div>"""
+        html += (
+            f'<a href="?g={encoded}" style="text-decoration:none;display:block;">'
+            f'<div class="rank-row" style="{sel_border}{sel_bg}">'
+            f'<div class="rank-pos" style="background:{bg};color:{fg};">{idx}</div>'
+            f'<div class="rank-name">{nazwa}{"  &#9664;" if is_selected else ""}</div>'
+            f'<div class="rank-score" style="color:{kol};">{wynik:.2f}</div>'
+            f'<div class="rank-dist">{dist_txt}</div>'
+            f'</div></a>'
+        )
 
     st.markdown(html, unsafe_allow_html=True)
 
 
-def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
+def render_overlay_zamkniecia(ranking, grupy_cash, teraz, portfele):
     medale = ["1.", "2.", "3."]
     top3_html = ""
+    _txt = C["text"]
     for i in range(min(3, len(ranking))):
         row = ranking.iloc[i]
         n, w = row["Grupa"], row["Wynik"]
@@ -403,11 +401,10 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
         top3_html += (
             f'<a href="?g={enc_n}" style="text-decoration:none;display:block;'
             f'padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.04);'
-            f'border-radius:10px;border-left:3px solid {kol};'
-            f'transition:background 0.15s;cursor:pointer;" '
+            f'border-radius:10px;border-left:3px solid {kol};cursor:pointer;" '
             f'class="overlay-podium-row">'
             f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-            f'<span style="font-size:17px;color:{C["text"]};">{medale[i]} <b>{n}</b></span>'
+            f'<span style="font-size:17px;color:{_txt};">{medale[i]} <b>{n}</b></span>'
             f'<span style="color:{kol};font-weight:700;font-size:15px;'
             f'font-family:var(--font-mono);">{w:.2f} '
             f'<span style="font-size:11px;">({zm:+.2f}%)</span></span>'
@@ -433,8 +430,8 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
         )
 
     dl = ""
-    if teraz.weekday() in (4,5):
-        nd = teraz + timedelta(days=(6-teraz.weekday()))
+    if teraz.weekday() in (4, 5):
+        nd = teraz + timedelta(days=(6 - teraz.weekday()))
         _cw = C["warn"]
         dl = (
             f'<div style="margin-top:14px;text-align:center;'
@@ -447,59 +444,58 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
             f'<div style="margin-top:14px;text-align:center;padding:10px;'
             f'background:{_cg}10;border:1px solid {_cg}40;border-radius:8px;">'
             f'<span style="color:{_cg};font-size:13px;">'
-            f'<b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
+            f'<b>Rebalans OTWARTY</b> — {23 - teraz.hour}h</span></div>'
         )
 
     _bg1 = C["bg1"]
     _brd = C["border"]
     _mut = C["muted"]
-    _txt = C["text"]
     _txt2 = C["text2"]
 
-    overlay_html = f"""
-    <style>
-    .overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}
-    #ov-close-x:hover {{ color: #ffffff !important; }}
-    #ov-close-btn:hover {{ background: rgba(255,255,255,0.12) !important; }}
-    </style>
-    <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;
-        z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);
-        display:flex;align-items:center;justify-content:center;">
-        <div style="background:{_bg1};border:1px solid {_brd};border-radius:16px;
-            padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;
-            box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;
-            font-family:var(--font-sans);">
-            <div id="ov-close-x" style="position:absolute;top:14px;right:18px;cursor:pointer;
-                color:{_mut};font-size:20px;padding:4px 8px;border-radius:6px;
-                transition:color 0.15s;">x</div>
-            <div style="text-align:center;margin-bottom:20px;">
-                <div style="font-size:20px;font-weight:700;color:{_txt};">Gielda zamknieta</div>
-                <div style="color:{_mut};font-size:12px;margin-top:4px;">
-                    Podsumowanie — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
-            </div>
-            <div style="color:{_txt2};font-size:10px;text-transform:uppercase;
-                letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>
-            {top3_html}
-            {cash_h}
-            {dl}
-            <div id="ov-close-btn" style="display:block;width:100%;margin-top:22px;padding:12px;
-                background:rgba(255,255,255,0.06);border:1px solid {_brd};
-                border-radius:10px;color:{_txt};font-size:13px;cursor:pointer;
-                font-family:var(--font-sans);font-weight:600;text-align:center;
-                transition:background 0.15s;">Zamknij</div>
-        </div>
-    </div>
-    <script>
-        (function() {{
-            var ov = document.getElementById('overlay-zamkniecie');
-            var closeX = document.getElementById('ov-close-x');
-            var closeBtn = document.getElementById('ov-close-btn');
-            if (closeX) closeX.addEventListener('click', function() {{ ov.style.display = 'none'; }});
-            if (closeBtn) closeBtn.addEventListener('click', function() {{ ov.style.display = 'none'; }});
-        }})();
-    </script>"""
-
-    st.markdown(overlay_html, unsafe_allow_html=True)
+    st.markdown(
+        f'<style>'
+        f'.overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}'
+        f'.ov-close-link {{ text-decoration:none; }}'
+        f'.ov-close-link:hover {{ opacity:0.8; }}'
+        f'</style>'
+        f'<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;'
+        f'z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);'
+        f'display:flex;align-items:center;justify-content:center;">'
+        f'<div style="background:{_bg1};border:1px solid {_brd};border-radius:16px;'
+        f'padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;'
+        f'box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;'
+        f'font-family:var(--font-sans);">'
+        #
+        # X button — plain <a> link
+        f'<a href="?ov=0" class="ov-close-link" style="position:absolute;top:14px;right:18px;'
+        f'color:{_mut};font-size:20px;padding:4px 8px;border-radius:6px;">x</a>'
+        #
+        # Header
+        f'<div style="text-align:center;margin-bottom:20px;">'
+        f'<div style="font-size:20px;font-weight:700;color:{_txt};">Gielda zamknieta</div>'
+        f'<div style="color:{_mut};font-size:12px;margin-top:4px;">'
+        f'Podsumowanie — {teraz.strftime("%d.%m.%Y, %H:%M")}</div>'
+        f'</div>'
+        #
+        # Label
+        f'<div style="color:{_txt2};font-size:10px;text-transform:uppercase;'
+        f'letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>'
+        #
+        # Content
+        f'{top3_html}'
+        f'{cash_h}'
+        f'{dl}'
+        #
+        # Close button — plain <a> link
+        f'<a href="?ov=0" class="ov-close-link" style="display:block;width:100%;margin-top:22px;'
+        f'padding:12px;background:rgba(255,255,255,0.06);border:1px solid {_brd};'
+        f'border-radius:10px;color:{_txt};font-size:13px;cursor:pointer;'
+        f'font-family:var(--font-sans);font-weight:600;text-align:center;">Zamknij</a>'
+        #
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
 
 def render_banner_cash(grupy_cash):
@@ -644,8 +640,11 @@ if gielda_off:
     wk = ostatni_pon.strftime('%Y-%m-%d')
     if st.session_state.get("_ow") != wk:
         st.session_state["_oh"] = False; st.session_state["_ow"] = wk
+    # Dismiss via link: ?ov=0
+    if st.query_params.get("ov") == "0":
+        st.session_state["_oh"] = True
     if not st.session_state.get("_oh", False):
-        render_overlay_zamkniecia(ranking_df, grupy_cash, wybrana, teraz, aktywne_portfele)
+        render_overlay_zamkniecia(ranking_df, grupy_cash, teraz, aktywne_portfele)
 
 # === OBLICZENIA PORTFELA ===
 kap = float(aktywne_portfele[wybrana]["kapital_startowy"])
@@ -693,11 +692,6 @@ if len(st.session_state[hk]) > 120: st.session_state[hk] = st.session_state[hk][
 # ==========================================
 
 with st.sidebar:
-    if gielda_off:
-        if st.checkbox("Ukryj overlay", value=st.session_state.get("_oh", False), key="_co"):
-            st.session_state["_oh"] = True
-        else: st.session_state["_oh"] = False
-        st.divider()
 
     st.header("Panel Administratora")
     if not czy_rebalans:
