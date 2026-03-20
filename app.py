@@ -377,17 +377,35 @@ def render_ranking_html(ranking_df, wybrana, portfele):
 
 
 def render_overlay_zamkniecia(ranking, grupy_cash, teraz, portfele):
-    medale = ["1.", "2.", "3."]
-    top3_html = ""
+    """Pelnoekranowe podsumowanie — natywne Streamlit, st.stop() blokuje reszte."""
     _txt = C["text"]
+    _mut = C["muted"]
+    _txt2 = C["text2"]
+    _brd = C["border"]
+    _bg2 = C["bg2"]
+
+    st.markdown(
+        f'<div style="text-align:center;padding:30px 0 10px 0;">'
+        f'<div style="font-size:24px;font-weight:700;color:{_txt};">Gielda zamknieta</div>'
+        f'<div style="color:{_mut};font-size:13px;margin-top:6px;">'
+        f'Podsumowanie tygodnia — {teraz.strftime("%d.%m.%Y, %H:%M")}</div>'
+        f'</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div style="color:{_txt2};font-size:10px;text-transform:uppercase;'
+        f'letter-spacing:1.5px;margin:20px 0 10px 0;border-bottom:1px solid {_brd};'
+        f'padding-bottom:6px;">Podium — pozycje ujawnione</div>',
+        unsafe_allow_html=True)
+
+    medale = ["1.", "2.", "3."]
     for i in range(min(3, len(ranking))):
         row = ranking.iloc[i]
         n, w = row["Grupa"], row["Wynik"]
         zm = w - 100
         kol = C["gain"] if zm >= 0 else C["loss"]
-        poz = portfele.get(n, {}).get("pozycje", {})
+        poz_data = portfele.get(n, {}).get("pozycje", {})
         tags = ""
-        for inst, waga in poz.items():
+        for inst, waga in poz_data.items():
             if waga != 0:
                 kp = C["gain"] if waga > 0 else C["loss"]
                 d = "L" if waga > 0 else "S"
@@ -397,105 +415,52 @@ def render_overlay_zamkniecia(ranking, grupy_cash, teraz, portfele):
                     f'color:{kp};font-family:var(--font-mono);">'
                     f'{skrot_inst(inst)} {d}{abs(waga):.0f}</span>'
                 )
-        enc_n = urllib.parse.quote(n)
-        top3_html += (
-            f'<a href="?g={enc_n}" style="text-decoration:none;display:block;'
-            f'padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.04);'
-            f'border-radius:10px;border-left:3px solid {kol};cursor:pointer;" '
-            f'class="overlay-podium-row">'
+        st.markdown(
+            f'<div style="padding:14px 18px;margin:8px 0;background:{_bg2};'
+            f'border:1px solid {_brd};border-radius:10px;border-left:3px solid {kol};">'
             f'<div style="display:flex;justify-content:space-between;align-items:center;">'
             f'<span style="font-size:17px;color:{_txt};">{medale[i]} <b>{n}</b></span>'
-            f'<span style="color:{kol};font-weight:700;font-size:15px;'
+            f'<span style="color:{kol};font-weight:700;font-size:16px;'
             f'font-family:var(--font-mono);">{w:.2f} '
-            f'<span style="font-size:11px;">({zm:+.2f}%)</span></span>'
+            f'<span style="font-size:12px;">({zm:+.2f}%)</span></span>'
             f'</div>'
-            f'<div style="margin-top:6px;">{tags}</div>'
-            f'</a>'
-        )
+            f'<div style="margin-top:8px;">{tags}</div>'
+            f'</div>', unsafe_allow_html=True)
 
-    cash_h = ""
     if grupy_cash:
-        lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
+        lista = ", ".join(grupy_cash)
         _cl = C["loss"]
-        _ct2 = C["text2"]
-        _mut = C["muted"]
-        cash_h = (
-            f'<div style="margin-top:16px;padding:14px 16px;'
+        st.markdown(
+            f'<div style="margin-top:18px;padding:14px 16px;'
             f'background:{_cl}10;border:1px solid {_cl}40;border-radius:10px;">'
             f'<div style="font-size:13px;color:{_cl};margin-bottom:4px;">'
             f'<b>Grupy w CASH:</b></div>'
-            f'<div style="color:{_ct2};font-size:12px;">{lista}</div>'
+            f'<div style="color:{_txt2};font-size:12px;">{lista}</div>'
             f'<div style="color:{_mut};font-size:11px;margin-top:6px;">'
-            f'Zgloście rebalans przed niedziela 23:00!</div></div>'
-        )
+            f'Zgloście rebalans przed niedziela 23:00!</div></div>',
+            unsafe_allow_html=True)
 
-    dl = ""
     if teraz.weekday() in (4, 5):
         nd = teraz + timedelta(days=(6 - teraz.weekday()))
         _cw = C["warn"]
-        dl = (
-            f'<div style="margin-top:14px;text-align:center;'
-            f'color:{_cw};font-size:12px;">'
-            f'Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
-        )
+        st.markdown(
+            f'<div style="margin-top:14px;text-align:center;color:{_cw};font-size:12px;">'
+            f'Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>',
+            unsafe_allow_html=True)
     elif teraz.weekday() == 6 and teraz.hour < 23:
         _cg = C["gain"]
-        dl = (
+        st.markdown(
             f'<div style="margin-top:14px;text-align:center;padding:10px;'
             f'background:{_cg}10;border:1px solid {_cg}40;border-radius:8px;">'
             f'<span style="color:{_cg};font-size:13px;">'
-            f'<b>Rebalans OTWARTY</b> — {23 - teraz.hour}h</span></div>'
-        )
+            f'<b>Rebalans OTWARTY</b> — {23 - teraz.hour}h</span></div>',
+            unsafe_allow_html=True)
 
-    _bg1 = C["bg1"]
-    _brd = C["border"]
-    _mut = C["muted"]
-    _txt2 = C["text2"]
-
-    st.markdown(
-        f'<style>'
-        f'.overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}'
-        f'.ov-close-link {{ text-decoration:none; }}'
-        f'.ov-close-link:hover {{ opacity:0.8; }}'
-        f'</style>'
-        f'<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;'
-        f'z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);'
-        f'display:flex;align-items:center;justify-content:center;">'
-        f'<div style="background:{_bg1};border:1px solid {_brd};border-radius:16px;'
-        f'padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;'
-        f'box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;'
-        f'font-family:var(--font-sans);">'
-        #
-        # X button — plain <a> link
-        f'<a href="?ov=0" class="ov-close-link" style="position:absolute;top:14px;right:18px;'
-        f'color:{_mut};font-size:20px;padding:4px 8px;border-radius:6px;">x</a>'
-        #
-        # Header
-        f'<div style="text-align:center;margin-bottom:20px;">'
-        f'<div style="font-size:20px;font-weight:700;color:{_txt};">Gielda zamknieta</div>'
-        f'<div style="color:{_mut};font-size:12px;margin-top:4px;">'
-        f'Podsumowanie — {teraz.strftime("%d.%m.%Y, %H:%M")}</div>'
-        f'</div>'
-        #
-        # Label
-        f'<div style="color:{_txt2};font-size:10px;text-transform:uppercase;'
-        f'letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>'
-        #
-        # Content
-        f'{top3_html}'
-        f'{cash_h}'
-        f'{dl}'
-        #
-        # Close button — plain <a> link
-        f'<a href="?ov=0" class="ov-close-link" style="display:block;width:100%;margin-top:22px;'
-        f'padding:12px;background:rgba(255,255,255,0.06);border:1px solid {_brd};'
-        f'border-radius:10px;color:{_txt};font-size:13px;cursor:pointer;'
-        f'font-family:var(--font-sans);font-weight:600;text-align:center;">Zamknij</a>'
-        #
-        f'</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Przejdz do terminala", use_container_width=True, type="primary"):
+        st.session_state["_oh"] = True
+        st.rerun()
+    st.stop()
 
 
 def render_banner_cash(grupy_cash):
