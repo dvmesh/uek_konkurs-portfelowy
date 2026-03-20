@@ -127,6 +127,193 @@ def buduj_historie_z_serii(nazwy_i_wagi: dict, wszystkie_historie: dict) -> pd.D
     return pd.concat(serie, axis=1).ffill().fillna(0) if serie else pd.DataFrame()
 
 
+def czy_gielda_zamknieta(czas: datetime) -> bool:
+    """Sprawdza czy giełda US jest zamknięta (po piątkowym close lub weekend).
+    US close = 22:00 Warsaw (16:00 ET w sezonie letnim)."""
+    dzien = czas.weekday()  # 0=Pon, 4=Pią, 5=Sob, 6=Nie
+    if dzien == 5:  # sobota
+        return True
+    if dzien == 6:  # niedziela
+        return True
+    if dzien == 4 and czas.hour >= 22:  # piątek po zamknięciu
+        return True
+    return False
+
+
+def znajdz_grupy_w_cashu(portfele: dict) -> list:
+    """Zwraca nazwy grup, które mają wszystkie pozycje = 0 (siedzą w cashu)."""
+    grupy_cash = []
+    for nazwa, dane in portfele.items():
+        pozycje = dane.get("pozycje", {})
+        if all(v == 0 for v in pozycje.values()):
+            grupy_cash.append(nazwa)
+    return grupy_cash
+
+
+def render_overlay_zamkniecia(ranking: pd.DataFrame, grupy_cash: list,
+                               wybrana: str, teraz: datetime):
+    """Renderuje overlay z podsumowaniem tygodnia po zamknięciu giełdy."""
+
+    # TOP 3 z rankingu
+    top3_html = ""
+    medale = ["🥇", "🥈", "🥉"]
+    for i in range(min(3, len(ranking))):
+        row = ranking.iloc[i]
+        medal = medale[i]
+        nazwa = row["Grupa"]
+        wynik = row["Wynik"]
+        zmiana = wynik - 100
+        kolor = KOLOR_ZYSK if zmiana >= 0 else KOLOR_STRATA
+        top3_html += f"""
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:12px 16px; margin:6px 0; background:rgba(255,255,255,0.05);
+                        border-radius:8px; border-left:3px solid {kolor};">
+                <span style="font-size:18px;">{medal} <b>{nazwa}</b></span>
+                <span style="color:{kolor}; font-weight:700; font-size:16px;">{wynik:.2f}
+                    <span style="font-size:12px;">({zmiana:+.2f}%)</span>
+                </span>
+            </div>
+        """
+
+    # Pozycja wybranej grupy
+    pozycja_wybranej = ""
+    if wybrana in ranking["Grupa"].values:
+        idx = ranking[ranking["Grupa"] == wybrana].index[0]
+        w_row = ranking.loc[idx]
+        w_zmiana = w_row["Wynik"] - 100
+        w_kolor = KOLOR_ZYSK if w_zmiana >= 0 else KOLOR_STRATA
+        pozycja_wybranej = f"""
+            <div style="margin-top:16px; padding:14px 16px; background:rgba(251,191,36,0.1);
+                        border:1px solid {KOLOR_ZOLTY}; border-radius:8px; text-align:center;">
+                <div style="color:{KOLOR_NEUTRAL}; font-size:11px; text-transform:uppercase;
+                            letter-spacing:1px;">Twoja grupa</div>
+                <div style="font-size:20px; margin:4px 0;"><b>{wybrana}</b> —
+                    miejsce <b style="color:{KOLOR_ZOLTY};">#{idx}</b> / {len(ranking)}</div>
+                <div style="color:{w_kolor}; font-size:16px; font-weight:600;">
+                    Wynik: {w_row['Wynik']:.2f} ({w_zmiana:+.2f}%)</div>
+            </div>
+        """
+
+    # Cash warning
+    cash_html = ""
+    if grupy_cash:
+        lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
+        cash_html = f"""
+            <div style="margin-top:16px; padding:14px 16px; background:rgba(248,113,113,0.1);
+                        border:1px solid {KOLOR_STRATA}; border-radius:8px;">
+                <div style="font-size:14px; color:{KOLOR_STRATA}; margin-bottom:6px;">
+                    ⚠️ <b>Grupy bez pozycji (100% CASH):</b>
+                </div>
+                <div style="color:#e5e7eb; font-size:13px; line-height:1.6;">
+                    {lista}
+                </div>
+                <div style="color:{KOLOR_NEUTRAL}; font-size:12px; margin-top:8px;">
+                    Pamiętajcie o zgłoszeniu rebalansu do obsługi konkursu
+                    przed niedzielą 23:00!
+                </div>
+            </div>
+        """
+
+    # Deadline info
+    deadline_info = ""
+    if teraz.weekday() in (4, 5):  # piątek/sobota — niedziela tego weekendu
+        nd = teraz + timedelta(days=(6 - teraz.weekday()))
+        deadline_info = f"""
+            <div style="margin-top:14px; text-align:center; color:{KOLOR_ZOLTY};
+                        font-size:13px;">
+                🕐 Okno rebalansu: <b>niedziela {nd.strftime('%d.%m')}, do 23:00</b>
+            </div>
+        """
+    elif teraz.weekday() == 6:  # niedziela
+        if teraz.hour < 23:
+            deadline_info = f"""
+                <div style="margin-top:14px; text-align:center;
+                            padding:10px; background:rgba(74,222,128,0.1);
+                            border:1px solid {KOLOR_ZYSK}; border-radius:8px;">
+                    <span style="color:{KOLOR_ZYSK}; font-size:14px;">
+                        🟢 <b>Okno rebalansu OTWARTE</b> — pozostało
+                        {23 - teraz.hour}h do zamknięcia
+                    </span>
+                </div>
+            """
+        else:
+            deadline_info = f"""
+                <div style="margin-top:14px; text-align:center; color:{KOLOR_STRATA};
+                            font-size:13px;">
+                    🔒 Okno rebalansu zamknięte. Nowy tydzień startuje w poniedziałek.
+                </div>
+            """
+
+    # Pełny overlay
+    st.markdown(f"""
+        <div id="overlay-zamkniecie" style="
+            position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:99999;
+            background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+            display:flex; align-items:center; justify-content:center;">
+            <div style="
+                background:#1a1b23; border:1px solid rgba(255,255,255,0.1);
+                border-radius:16px; padding:32px 36px; max-width:520px; width:90%;
+                max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+                position:relative;">
+
+                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'"
+                    style="position:absolute; top:12px; right:16px; background:none; border:none;
+                           color:{KOLOR_NEUTRAL}; font-size:22px; cursor:pointer;
+                           padding:4px 8px; border-radius:6px; transition:all 0.2s;"
+                    onmouseover="this.style.color='#ffffff'; this.style.background='rgba(255,255,255,0.1)'"
+                    onmouseout="this.style.color='{KOLOR_NEUTRAL}'; this.style.background='none'"
+                    title="Zamknij">✕</button>
+
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div style="font-size:28px; margin-bottom:4px;">🔔</div>
+                    <div style="font-size:22px; font-weight:700; color:#ffffff;">
+                        Giełda zamknięta</div>
+                    <div style="color:{KOLOR_NEUTRAL}; font-size:13px; margin-top:4px;">
+                        Podsumowanie tygodnia —
+                        {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
+                </div>
+
+                <div style="color:{KOLOR_NEUTRAL}; font-size:11px; text-transform:uppercase;
+                            letter-spacing:1px; margin-bottom:8px;">🏆 Podium</div>
+                {top3_html}
+                {pozycja_wybranej}
+                {cash_html}
+                {deadline_info}
+
+                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'"
+                    style="display:block; width:100%; margin-top:20px; padding:12px;
+                           background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+                           border-radius:8px; color:#ffffff; font-size:14px; cursor:pointer;
+                           transition:all 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.15)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+                    Przejdź do Terminala →</button>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+
+def render_banner_cash(grupy_cash: list):
+    """Renderuje stały banner u góry strony z przypomnieniem dla grup w cashu."""
+    if not grupy_cash:
+        return
+    lista = ", ".join(grupy_cash[:8])
+    reszta = f" i {len(grupy_cash) - 8} więcej..." if len(grupy_cash) > 8 else ""
+    st.markdown(f"""
+        <div style="padding:10px 16px; background:rgba(251,191,36,0.1);
+                    border:1px solid {KOLOR_ZOLTY}; border-radius:8px;
+                    margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:20px;">💤</span>
+            <div>
+                <div style="color:{KOLOR_ZOLTY}; font-size:13px; font-weight:600;">
+                    Grupy w 100% CASH (brak otwartych pozycji)</div>
+                <div style="color:{KOLOR_NEUTRAL}; font-size:12px;">
+                    {lista}{reszta} — zgłoście rebalans do obsługi konkursu!</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+
 # =============================================
 # ====== ŁADOWANIE DANYCH ====================
 # =============================================
@@ -260,6 +447,22 @@ with col_t:
     st.title(f"Widok portfela: {wybrana_grupa}")
 
 
+# === DETEKCJA ZAMKNIĘCIA GIEŁDY + GRUPY W CASHU ===
+gielda_zamknieta = czy_gielda_zamknieta(teraz)
+grupy_cash = znajdz_grupy_w_cashu(aktywne_portfele)
+
+# Overlay po zamknięciu giełdy (piątek po 22:00, sobota, niedziela)
+if gielda_zamknieta:
+    # Reset flagi na nowy weekend (żeby overlay pojawił się ponownie w nowym tygodniu)
+    aktualny_weekend_key = ostatni_poniedzialek.strftime('%Y-%m-%d')
+    if st.session_state.get("_overlay_week") != aktualny_weekend_key:
+        st.session_state["_overlay_ukryty"] = False
+        st.session_state["_overlay_week"] = aktualny_weekend_key
+
+    if not st.session_state.get("_overlay_ukryty", False):
+        render_overlay_zamkniecia(ranking_df, grupy_cash, wybrana_grupa, teraz)
+
+
 # === OBLICZENIA DLA WYBRANEJ GRUPY ===
 kapital_poczatkowy = float(aktywne_portfele[wybrana_grupa]["kapital_startowy"])
 pozycje_z_panelu = aktywne_portfele[wybrana_grupa]["pozycje"]
@@ -340,6 +543,16 @@ else:
 # ==========================================
 
 with st.sidebar:
+    # Toggle overlay zamknięcia giełdy
+    if gielda_zamknieta:
+        if st.checkbox("Ukryj podsumowanie weekendowe",
+                        value=st.session_state.get("_overlay_ukryty", False),
+                        key="_chk_overlay"):
+            st.session_state["_overlay_ukryty"] = True
+        else:
+            st.session_state["_overlay_ukryty"] = False
+        st.divider()
+
     st.header("Panel Administratora")
     if not czy_mozna_rebalansowac:
         st.error("Zablokowane")
@@ -397,6 +610,10 @@ with st.sidebar:
 # ==========================================
 # ====== BUDOWA INTERFEJSU (UI LAYOUT) =====
 # ==========================================
+
+# 0. BANNER DLA GRUP W CASHU (zawsze widoczny jeśli są takie grupy)
+if grupy_cash:
+    render_banner_cash(grupy_cash)
 
 # 1. KARTY STATYSTYK
 karty = [
