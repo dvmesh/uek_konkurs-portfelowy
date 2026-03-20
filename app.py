@@ -722,7 +722,7 @@ if not hp.empty:
     dodaj_serie_z_etykieta(fig, tm.index, tm, wybrana, color=C["text"], width=2.5, fill=True)
 if not ha.empty:
     ta = ha.sum(axis=1)
-    dodaj_serie_z_etykieta(fig, ta.index, ta, 'Średnia', color=f'{C["warn"]}99',
+    dodaj_serie_z_etykieta(fig, ta.index, ta, 'Średnia', color='rgba(245,158,11,0.6)',
                            width=1.5, dash='dot', ax=45, ay=-25, marker_size=5, label_prefix="Śr: ")
 if not hr.empty:
     tr = hr.sum(axis=1)
