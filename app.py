@@ -3,6 +3,7 @@ import os
 import io
 import shutil
 import logging
+import urllib.parse
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -107,9 +108,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
     display: flex; align-items: center; gap: 12px;
     padding: 10px 14px; border-radius: 8px;
     background: var(--bg2); border: 1px solid var(--border);
-    margin-bottom: 6px; transition: background 0.15s;
+    margin-bottom: 6px; transition: all 0.15s; cursor: pointer;
+    user-select: none;
 }}
-.rank-row:hover {{ background: var(--bg3); }}
+.rank-row:hover {{ background: var(--bg3); transform: translateX(3px); }}
 .rank-pos {{
     font-family: var(--font-mono); font-size: 13px; font-weight: 700;
     width: 32px; height: 32px; display: flex; align-items: center;
@@ -339,7 +341,7 @@ def render_sentyment_bars(sentyment):
 
 
 def render_ranking_html(ranking_df, wybrana, portfele):
-    """Custom HTML ranking z podium i position badges."""
+    """Custom HTML ranking — kliknij wiersz, żeby przełączyć grupę."""
     html = ''
     for i, (idx, row) in enumerate(ranking_df.iterrows()):
         nazwa = row["Grupa"]
@@ -361,8 +363,13 @@ def render_ranking_html(ranking_df, wybrana, portfele):
 
         dist_txt = "" if i == 0 else f"{dystans:+.2f}"
 
+        # Encode group name for URL safety
+        encoded = urllib.parse.quote(nazwa)
+
         html += f"""
-            <div class="rank-row" style="{sel_border}{sel_bg}">
+            <div class="rank-row" style="{sel_border}{sel_bg}"
+                 onclick="window.location.search='?g={encoded}';"
+                 title="Kliknij, aby przejsc do {nazwa}">
                 <div class="rank-pos" style="background:{bg};color:{fg};">{idx}</div>
                 <div class="rank-name">{nazwa}{'  ◄' if is_selected else ''}</div>
                 <div class="rank-score" style="color:{kol};">{wynik:.2f}</div>
@@ -386,15 +393,28 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
             if waga != 0:
                 kp = C["gain"] if waga > 0 else C["loss"]
                 d = "L" if waga > 0 else "S"
-                tags += f'<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;font-size:10px;background:rgba(255,255,255,0.06);color:{kp};font-family:var(--font-mono);">{skrot_inst(inst)} {d}{abs(waga):.0f}</span>'
-        top3_html += f"""
-            <div style="padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.04);border-radius:10px;border-left:3px solid {kol};">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:17px;">{medale[i]} <b>{n}</b></span>
-                    <span style="color:{kol};font-weight:700;font-size:15px;font-family:var(--font-mono);">{w:.2f} <span style="font-size:11px;">({zm:+.2f}%)</span></span>
-                </div>
-                <div style="margin-top:6px;">{tags}</div>
-            </div>"""
+                tags += (
+                    f'<span style="display:inline-block;padding:2px 6px;margin:2px;'
+                    f'border-radius:4px;font-size:10px;background:rgba(255,255,255,0.06);'
+                    f'color:{kp};font-family:var(--font-mono);">'
+                    f'{skrot_inst(inst)} {d}{abs(waga):.0f}</span>'
+                )
+        enc_n = urllib.parse.quote(n)
+        top3_html += (
+            f'<a href="?g={enc_n}" style="text-decoration:none;display:block;'
+            f'padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.04);'
+            f'border-radius:10px;border-left:3px solid {kol};'
+            f'transition:background 0.15s;cursor:pointer;" '
+            f'class="overlay-podium-row">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+            f'<span style="font-size:17px;color:{C["text"]};">{medale[i]} <b>{n}</b></span>'
+            f'<span style="color:{kol};font-weight:700;font-size:15px;'
+            f'font-family:var(--font-mono);">{w:.2f} '
+            f'<span style="font-size:11px;">({zm:+.2f}%)</span></span>'
+            f'</div>'
+            f'<div style="margin-top:6px;">{tags}</div>'
+            f'</a>'
+        )
 
     poz_w = ""
     if wybrana in ranking["Grupa"].values:
@@ -402,48 +422,107 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
         wr = ranking.loc[idx]
         wz = wr["Wynik"]-100
         wk = C["gain"] if wz >= 0 else C["loss"]
-        poz_w = f'<div style="margin-top:16px;padding:14px 16px;background:{C["warn"]}10;border:1px solid {C["warn"]}40;border-radius:10px;text-align:center;"><div style="color:{C["text2"]};font-size:10px;text-transform:uppercase;letter-spacing:1px;">Twoja grupa</div><div style="font-size:18px;margin:4px 0;"><b>{wybrana}</b> — #{idx} / {len(ranking)}</div><div style="color:{wk};font-size:15px;font-weight:600;font-family:var(--font-mono);">{wr["Wynik"]:.2f} ({wz:+.2f}%)</div></div>'
+        _cw = C["warn"]
+        _ct2 = C["text2"]
+        poz_w = (
+            f'<div style="margin-top:16px;padding:14px 16px;'
+            f'background:{_cw}10;border:1px solid {_cw}40;'
+            f'border-radius:10px;text-align:center;">'
+            f'<div style="color:{_ct2};font-size:10px;'
+            f'text-transform:uppercase;letter-spacing:1px;">Twoja grupa</div>'
+            f'<div style="font-size:18px;margin:4px 0;">'
+            f'<b>{wybrana}</b> — #{idx} / {len(ranking)}</div>'
+            f'<div style="color:{wk};font-size:15px;font-weight:600;'
+            f'font-family:var(--font-mono);">'
+            f'{wr["Wynik"]:.2f} ({wz:+.2f}%)</div></div>'
+        )
 
     cash_h = ""
     if grupy_cash:
         lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
-        cash_h = f'<div style="margin-top:16px;padding:14px 16px;background:{C["loss"]}10;border:1px solid {C["loss"]}40;border-radius:10px;"><div style="font-size:13px;color:{C["loss"]};margin-bottom:4px;"><b>Grupy w CASH:</b></div><div style="color:{C["text2"]};font-size:12px;">{lista}</div><div style="color:{C["muted"]};font-size:11px;margin-top:6px;">Zgłoście rebalans przed niedzielą 23:00!</div></div>'
+        _cl = C["loss"]
+        cash_h = (
+            f'<div style="margin-top:16px;padding:14px 16px;'
+            f'background:{_cl}10;border:1px solid {_cl}40;border-radius:10px;">'
+            f'<div style="font-size:13px;color:{_cl};margin-bottom:4px;">'
+            f'<b>Grupy w CASH:</b></div>'
+            f'<div style="color:{C["text2"]};font-size:12px;">{lista}</div>'
+            f'<div style="color:{C["muted"]};font-size:11px;margin-top:6px;">'
+            f'Zgloście rebalans przed niedziela 23:00!</div></div>'
+        )
 
     dl = ""
     if teraz.weekday() in (4,5):
         nd = teraz + timedelta(days=(6-teraz.weekday()))
-        dl = f'<div style="margin-top:14px;text-align:center;color:{C["warn"]};font-size:12px;">Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
+        dl = (
+            f'<div style="margin-top:14px;text-align:center;'
+            f'color:{C["warn"]};font-size:12px;">'
+            f'Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
+        )
     elif teraz.weekday() == 6 and teraz.hour < 23:
-        dl = f'<div style="margin-top:14px;text-align:center;padding:10px;background:{C["gain"]}10;border:1px solid {C["gain"]}40;border-radius:8px;"><span style="color:{C["gain"]};font-size:13px;"><b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
+        _cg = C["gain"]
+        dl = (
+            f'<div style="margin-top:14px;text-align:center;padding:10px;'
+            f'background:{_cg}10;border:1px solid {_cg}40;border-radius:8px;">'
+            f'<span style="color:{_cg};font-size:13px;">'
+            f'<b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
+        )
 
-    st.markdown(f"""
-        <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;">
-            <div style="background:{C["bg1"]};border:1px solid {C["border"]};border-radius:16px;padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;font-family:var(--font-sans);">
-                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'" style="position:absolute;top:14px;right:18px;background:none;border:none;color:{C["muted"]};font-size:20px;cursor:pointer;">✕</button>
-                <div style="text-align:center;margin-bottom:20px;">
-                    <div style="font-size:20px;font-weight:700;color:{C["text"]};">Giełda zamknięta</div>
-                    <div style="color:{C["muted"]};font-size:12px;margin-top:4px;">Podsumowanie — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
-                </div>
-                <div style="color:{C["text2"]};font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>
-                {top3_html}{poz_w}{cash_h}{dl}
-                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'" style="display:block;width:100%;margin-top:22px;padding:12px;background:rgba(255,255,255,0.06);border:1px solid {C["border"]};border-radius:10px;color:{C["text"]};font-size:13px;cursor:pointer;font-family:var(--font-sans);font-weight:600;">Przejdź do Terminala →</button>
+    _bg1 = C["bg1"]
+    _brd = C["border"]
+    _mut = C["muted"]
+    _txt = C["text"]
+    _txt2 = C["text2"]
+
+    overlay_html = f"""
+    <style>.overlay-podium-row:hover {{ background: rgba(255,255,255,0.08) !important; }}</style>
+    <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;
+        z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);
+        display:flex;align-items:center;justify-content:center;">
+        <div style="background:{_bg1};border:1px solid {_brd};border-radius:16px;
+            padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;
+            box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;
+            font-family:var(--font-sans);">
+            <div style="position:absolute;top:14px;right:18px;cursor:pointer;
+                color:{_mut};font-size:20px;"
+                onclick="document.getElementById('overlay-zamkniecie').style.display='none'">x</div>
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:700;color:{_txt};">Gielda zamknieta</div>
+                <div style="color:{_mut};font-size:12px;margin-top:4px;">
+                    Podsumowanie — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
             </div>
-        </div>""", unsafe_allow_html=True)
+            <div style="color:{_txt2};font-size:10px;text-transform:uppercase;
+                letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>
+            {top3_html}
+            {poz_w}
+            {cash_h}
+            {dl}
+            <div style="display:block;width:100%;margin-top:22px;padding:12px;
+                background:rgba(255,255,255,0.06);border:1px solid {_brd};
+                border-radius:10px;color:{_txt};font-size:13px;cursor:pointer;
+                font-family:var(--font-sans);font-weight:600;text-align:center;"
+                onclick="document.getElementById('overlay-zamkniecie').style.display='none'">
+                Przejdz do Terminala</div>
+        </div>
+    </div>"""
+
+    st.markdown(overlay_html, unsafe_allow_html=True)
 
 
 def render_banner_cash(grupy_cash):
     if not grupy_cash: return
     lista = ", ".join(grupy_cash[:8])
     reszta = f" +{len(grupy_cash)-8}" if len(grupy_cash) > 8 else ""
-    st.markdown(f"""
-        <div style="padding:10px 16px;background:{C["warn"]}0D;border:1px solid {C["warn"]}30;
-                    border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
-            
-            <div>
-                <div style="color:{C["warn"]};font-size:12px;font-weight:600;">Grupy w 100% CASH</div>
-                <div style="color:{C["text2"]};font-size:11px;">{lista}{reszta} — zgłoście rebalans!</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+    _cw = C["warn"]
+    _ct2 = C["text2"]
+    st.markdown(
+        f'<div style="padding:10px 16px;background:{_cw}0D;border:1px solid {_cw}30;'
+        f'border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">'
+        f'<div>'
+        f'<div style="color:{_cw};font-size:12px;font-weight:600;">Grupy w 100% CASH</div>'
+        f'<div style="color:{_ct2};font-size:11px;">{lista}{reszta} — zgloście rebalans!</div>'
+        f'</div></div>',
+        unsafe_allow_html=True)
 
 
 # plotly layout helper
@@ -545,12 +624,25 @@ lider = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
 
 # === UI: SELEKTOR ===
 lista_grup = sorted(aktywne_portfele.keys())
-idx_def = lista_grup.index(lider) if lider in lista_grup else 0
+
+# Odczyt grupy z URL (klik w ranking) — nadpisuje domyślny wybór lidera
+_param_g = st.query_params.get("g", "")
+if _param_g and _param_g in lista_grup:
+    idx_def = lista_grup.index(_param_g)
+elif lider in lista_grup:
+    idx_def = lista_grup.index(lider)
+else:
+    idx_def = 0
+
 col_t, col_w = st.columns([2, 1])
 with col_w:
     wybrana = st.selectbox("Wybór portfela:", lista_grup, index=idx_def, label_visibility="collapsed")
 with col_t:
     st.markdown(f'<div style="font-size:26px;font-weight:700;color:{C["text"]};padding:6px 0;">{wybrana}</div>', unsafe_allow_html=True)
+
+# Sync: jeśli user zmienił selectbox ręcznie, zaktualizuj query param
+if wybrana != _param_g:
+    st.query_params["g"] = wybrana
 
 # === OVERLAY ===
 gielda_off = czy_gielda_zamknieta(teraz)
