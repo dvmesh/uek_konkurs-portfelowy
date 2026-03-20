@@ -241,9 +241,8 @@ def skrot_inst(nazwa):
 
 # === UI RENDERERS ===
 
-def section_label(icon, text):
-    st.markdown(f'<div class="section-label">{icon}&nbsp;&nbsp;{text}</div>',
-                unsafe_allow_html=True)
+def section_label(text):
+    st.markdown(f'<div class="section-label">{text}</div>', unsafe_allow_html=True)
 
 def render_ticker_strip(cache, zmiany):
     """Pasek z cenami live na górze."""
@@ -275,12 +274,12 @@ def render_ticker_strip(cache, zmiany):
 
 
 def render_stat_cards(karty):
-    """Grid kart statystyk z ikonami i akcentami."""
+    """Grid kart statystyk."""
     html = '<div class="stat-grid">'
-    for icon, label, value, sub, accent in karty:
+    for label, value, sub, accent in karty:
         html += f"""
             <div class="stat-card" style="--accent:{accent};">
-                <div class="stat-label">{icon} {label}</div>
+                <div class="stat-label">{label}</div>
                 <div class="stat-value" style="color:{accent};">{value}</div>
                 {'<div class="stat-sub">' + sub + '</div>' if sub else ''}
             </div>"""
@@ -374,7 +373,7 @@ def render_ranking_html(ranking_df, wybrana, portfele):
 
 
 def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
-    medale = ["🥇", "🥈", "🥉"]
+    medale = ["1.", "2.", "3."]
     top3_html = ""
     for i in range(min(3, len(ranking))):
         row = ranking.iloc[i]
@@ -408,21 +407,20 @@ def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
     cash_h = ""
     if grupy_cash:
         lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
-        cash_h = f'<div style="margin-top:16px;padding:14px 16px;background:{C["loss"]}10;border:1px solid {C["loss"]}40;border-radius:10px;"><div style="font-size:13px;color:{C["loss"]};margin-bottom:4px;">⚠️ <b>Grupy w CASH:</b></div><div style="color:{C["text2"]};font-size:12px;">{lista}</div><div style="color:{C["muted"]};font-size:11px;margin-top:6px;">Zgłoście rebalans przed niedzielą 23:00!</div></div>'
+        cash_h = f'<div style="margin-top:16px;padding:14px 16px;background:{C["loss"]}10;border:1px solid {C["loss"]}40;border-radius:10px;"><div style="font-size:13px;color:{C["loss"]};margin-bottom:4px;"><b>Grupy w CASH:</b></div><div style="color:{C["text2"]};font-size:12px;">{lista}</div><div style="color:{C["muted"]};font-size:11px;margin-top:6px;">Zgłoście rebalans przed niedzielą 23:00!</div></div>'
 
     dl = ""
     if teraz.weekday() in (4,5):
         nd = teraz + timedelta(days=(6-teraz.weekday()))
-        dl = f'<div style="margin-top:14px;text-align:center;color:{C["warn"]};font-size:12px;">🕐 Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
+        dl = f'<div style="margin-top:14px;text-align:center;color:{C["warn"]};font-size:12px;">Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
     elif teraz.weekday() == 6 and teraz.hour < 23:
-        dl = f'<div style="margin-top:14px;text-align:center;padding:10px;background:{C["gain"]}10;border:1px solid {C["gain"]}40;border-radius:8px;"><span style="color:{C["gain"]};font-size:13px;">🟢 <b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
+        dl = f'<div style="margin-top:14px;text-align:center;padding:10px;background:{C["gain"]}10;border:1px solid {C["gain"]}40;border-radius:8px;"><span style="color:{C["gain"]};font-size:13px;"><b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
 
     st.markdown(f"""
         <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;">
             <div style="background:{C["bg1"]};border:1px solid {C["border"]};border-radius:16px;padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;font-family:var(--font-sans);">
                 <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'" style="position:absolute;top:14px;right:18px;background:none;border:none;color:{C["muted"]};font-size:20px;cursor:pointer;">✕</button>
                 <div style="text-align:center;margin-bottom:20px;">
-                    <div style="font-size:32px;margin-bottom:6px;">🏁</div>
                     <div style="font-size:20px;font-weight:700;color:{C["text"]};">Giełda zamknięta</div>
                     <div style="color:{C["muted"]};font-size:12px;margin-top:4px;">Podsumowanie — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
                 </div>
@@ -440,7 +438,7 @@ def render_banner_cash(grupy_cash):
     st.markdown(f"""
         <div style="padding:10px 16px;background:{C["warn"]}0D;border:1px solid {C["warn"]}30;
                     border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
-            <span style="font-size:18px;">💤</span>
+            
             <div>
                 <div style="color:{C["warn"]};font-size:12px;font-weight:600;">Grupy w 100% CASH</div>
                 <div style="color:{C["text2"]};font-size:11px;">{lista}{reszta} — zgłoście rebalans!</div>
@@ -520,7 +518,7 @@ with st.spinner('Synchronizacja...'):
                 hist_all[nazwa] = (h['Close'] - o) / o
 
 if not zmiany:
-    st.warning("⚠️ Brak danych rynkowych.")
+    st.warning("Brak danych rynkowych.")
 
 # === RANKING ===
 wyniki = []
@@ -595,8 +593,8 @@ moje_m = ranking_df[ranking_df['Grupa']==wybrana].index[0] if wybrana in ranking
 ks = f"pm_{wybrana}"
 if ks not in st.session_state: st.session_state[ks] = moje_m
 else:
-    if moje_m < st.session_state[ks]: st.toast(f"📈 Awans: {wybrana} → #{moje_m}")
-    elif moje_m > st.session_state[ks]: st.toast(f"📉 Spadek: {wybrana} → #{moje_m}")
+    if moje_m < st.session_state[ks]: st.toast(f"Awans: {wybrana} → #{moje_m}")
+    elif moje_m > st.session_state[ks]: st.toast(f"Spadek: {wybrana} → #{moje_m}")
     st.session_state[ks] = moje_m
 
 hk = f"hp_{wybrana}"
@@ -639,7 +637,7 @@ with st.sidebar:
                     backup_portfela()
                     ustawienia[gr] = {"kapital_startowy": nk, "pozycje": np_}
                     zapisz_ustawienia(ustawienia); zapisz_log(gr, aktywne_portfele.get(gr,{}), ustawienia[gr])
-                    st.cache_data.clear(); st.success(f"✅ {gr}"); st.rerun()
+                    st.cache_data.clear(); st.success(f"Zapisano: {gr}"); st.rerun()
             else:
                 st.caption("Edytuj, kliknij Zapisz batch.")
                 rows = []
@@ -655,17 +653,17 @@ with st.sidebar:
                     use_container_width=True, hide_index=True, key="be")
                 errs = [f'{r["Grupa"]}' for _,r in ed.iterrows() if abs(r["SPX"])+abs(r["GOLD"])+abs(r["10Y"])+abs(r["EUR"])>r["Kap"]]
                 for e in errs: st.error(f"Limit: {e}")
-                if not errs and st.button("💾 Zapisz batch"):
+                if not errs and st.button("Zapisz batch"):
                     backup_portfela(); cnt=0
                     for _,r in ed.iterrows():
                         n={"kapital_startowy":r["Kap"],"pozycje":{"S&P 500":r["SPX"],"Złoto (Gold)":r["GOLD"],"US10Y Yield":r["10Y"],"EUR/USD":r["EUR"]}}
                         if n!=aktywne_portfele.get(r["Grupa"],{}): zapisz_log(r["Grupa"],aktywne_portfele.get(r["Grupa"],{}),n); cnt+=1
                         ustawienia[r["Grupa"]]=n
                     zapisz_ustawienia(ustawienia); st.cache_data.clear()
-                    st.success(f"✅ {cnt} zmian"); st.rerun()
+                    st.success(f"Zapisano: {cnt} zmian"); st.rerun()
 
     st.divider()
-    if st.button("📊 Eksport .xlsx"):
+    if st.button("Eksport .xlsx"):
         buf = io.BytesIO()
         with pd.ExcelWriter(buf, engine='openpyxl') as wr:
             ranking_df.to_excel(wr, sheet_name='Ranking', index=True)
@@ -676,7 +674,7 @@ with st.sidebar:
                     with open(PLIK_LOGU,"r",encoding="utf-8") as f: ld=json.load(f)
                     pd.DataFrame([{"Czas":w["timestamp"],"Grupa":w["grupa"],**{k:w["nowe"].get("pozycje",{}).get(k,"") for k in TICKERY}} for w in ld]).to_excel(wr, sheet_name='Log', index=False)
                 except: pass
-        st.download_button("⬇️ Pobierz", data=buf.getvalue(),
+        st.download_button("Pobierz", data=buf.getvalue(),
             file_name=f"ranking_{teraz.strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -701,21 +699,17 @@ dist = ranking_df.loc[ranking_df["Grupa"]==wybrana, "Dystans do #1"].values
 dist_val = dist[0] if len(dist) else 0
 
 render_stat_cards([
-    ("💰", "Stan konta", f"{stan:.2f}", f"start: {kap:.0f}", C["text"]),
-    ("📊", "P&L tygodnia", f"{zysk:+.2f}", f"{zm_prc:+.2f}%", C["gain"] if zysk >= 0 else C["loss"]),
-    ("⚡", "Alfa vs rynek", f"{alfa:+.2f}%", "vs 4×25 benchmark", C["gain"] if alfa > 0 else (C["loss"] if alfa < 0 else C["muted"])),
-    ("📉", "Max Drawdown", f"{mdd:+.2f}%", "tygodniowe MDD", C["loss"] if mdd < -1 else (C["warn"] if mdd < 0 else C["gain"])),
-    ("🎯", "Hit Rate", f"{hit:.0f}%", f"{wins}/{n_poz} pozycji", C["gain"] if hit >= 50 else (C["loss"] if n_poz > 0 else C["muted"])),
-    ("🏆", "Pozycja", pos_label, f"{pos_sub} · dystans {dist_val:+.2f}", C["warn"] if moje_m <= 3 else C["text"]),
+    ("Stan konta", f"{stan:.2f}", f"start: {kap:.0f}", C["text"]),
+    ("P&L tygodnia", f"{zysk:+.2f}", f"{zm_prc:+.2f}%", C["gain"] if zysk >= 0 else C["loss"]),
+    ("Alfa vs rynek", f"{alfa:+.2f}%", "vs 4x25 benchmark", C["gain"] if alfa > 0 else (C["loss"] if alfa < 0 else C["muted"])),
+    ("Max Drawdown", f"{mdd:+.2f}%", "tygodniowe MDD", C["loss"] if mdd < -1 else (C["warn"] if mdd < 0 else C["gain"])),
+    ("Hit Rate", f"{hit:.0f}%", f"{wins}/{n_poz} pozycji", C["gain"] if hit >= 50 else (C["loss"] if n_poz > 0 else C["muted"])),
+    ("Pozycja", pos_label, f"{pos_sub} / dystans {dist_val:+.2f}", C["warn"] if moje_m <= 3 else C["text"]),
 ])
 
 
-# 2. POZYCJE (tagi)
-section_label("📋", "Otwarte pozycje")
-render_pozycje_tagi(dane_tab)
-
-# 3. WYKRES PORTFELA
-section_label("📈", "Stopa zwrotu vs benchmark")
+# 2. WYKRES PORTFELA
+section_label("Stopa zwrotu vs benchmark")
 fig = go.Figure()
 if not hp.empty:
     tm = hp.sum(axis=1)
@@ -737,7 +731,7 @@ st.plotly_chart(fig, use_container_width=True)
 c1, c2, c3 = st.columns([1.1, 0.9, 1])
 
 with c1:
-    section_label("🔬", "Dekompozycja wyniku")
+    section_label("Dekompozycja wyniku")
     if wklady:
         pos = dict(sorted(wklady.items(), key=lambda x: abs(x[1]), reverse=True))
         fig_wf = go.Figure()
@@ -770,25 +764,15 @@ with c1:
         st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:20px;">100% cash</div>', unsafe_allow_html=True)
 
 with c2:
-    section_label("🧭", "Sentyment rynku")
+    section_label("Sentyment rynku")
     render_sentyment_bars(sentyment)
 
 with c3:
-    section_label("🏅", "Ranking")
+    section_label("Ranking")
     render_ranking_html(ranking_df, wybrana, aktywne_portfele)
 
 
-# 5. HISTORIA POZYCJI
-hpd = st.session_state.get(f"hp_{wybrana}", [])
-if len(hpd) > 1:
-    section_label("📍", f"Pozycja {wybrana} — live tracking")
-    df_hp = pd.DataFrame(hpd)
-    fig_hp = go.Figure()
-    fig_hp.add_trace(go.Scatter(x=df_hp["t"], y=df_hp["m"], mode='lines+markers',
-        line=dict(color=C["warn"], width=2), marker=dict(color=C["warn"], size=5)))
-    fig_hp.update_layout(**dark_layout(height=200,
-        yaxis=dict(autorange="reversed", dtick=1, gridcolor='rgba(148,163,184,0.06)', title=None)))
-    st.plotly_chart(fig_hp, use_container_width=True)
+
 
 # FOOTER
-st.markdown(f'<div style="text-align:center;padding:16px 0;color:{C["muted"]};font-size:11px;font-family:var(--font-mono);">◉ LIVE · {teraz.strftime("%H:%M:%S")} Warsaw · 60s refresh</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;padding:16px 0;color:{C["muted"]};font-size:11px;font-family:var(--font-mono);">LIVE · {teraz.strftime("%H:%M:%S")} Warsaw · 60s refresh</div>', unsafe_allow_html=True)
