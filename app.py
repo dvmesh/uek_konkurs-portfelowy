@@ -47,7 +47,6 @@ st.markdown(f"""
     --font-sans: 'DM Sans', -apple-system, sans-serif;
 }}
 .stApp {{ font-family: var(--font-sans) !important; }}
-.stApp [data-testid="stHeader"] {{ display: none; }}
 div[data-testid="stVerticalBlockBorderWrapper"] {{
     border: none !important; background: none !important;
 }}
@@ -521,7 +520,12 @@ nd = teraz + timedelta(days=dni_do_nd)
 deadline = nd.replace(hour=23, minute=0, second=0, microsecond=0)
 if teraz > deadline: deadline += timedelta(days=7)
 roznica = deadline - teraz
-czy_rebalans = (teraz.weekday() == 6) and (teraz.hour < 23)
+# Rebalans dostepny od piatku 22:00 do niedzieli 23:00
+czy_rebalans = (
+    (teraz.weekday() == 4 and teraz.hour >= 22) or  # piatek po zamknieciu
+    teraz.weekday() == 5 or                          # sobota caly dzien
+    (teraz.weekday() == 6 and teraz.hour < 23)       # niedziela do 23:00
+)
 
 @st.cache_data(ttl=60)
 def pobierz(ticker, start):
@@ -606,10 +610,16 @@ with st.sidebar:
 
     st.header("Panel Administratora")
     if not czy_rebalans:
+        # Oblicz czas do otwarcia (najblizszy piatek 22:00)
+        dni_do_pt = (4 - teraz.weekday()) % 7
+        if dni_do_pt == 0 and teraz.hour >= 22:
+            dni_do_pt = 7
+        otwarcie = (teraz + timedelta(days=dni_do_pt)).replace(hour=22, minute=0, second=0, microsecond=0)
+        delta_otw = otwarcie - teraz
         st.error("Zablokowane")
-        st.info(f"Otwarcie za: {roznica.days}d {roznica.seconds//3600}h")
+        st.info(f"Otwarcie: piatek 22:00 (za {delta_otw.days}d {delta_otw.seconds//3600}h)")
     else:
-        st.success("Sesja rebalansu otwarta")
+        st.success("Sesja rebalansu otwarta (pt 22:00 — nd 23:00)")
         haslo = st.secrets.get("ADMIN_PASSWORD", os.environ.get("ADMIN_PASSWORD", ""))
         if not haslo: st.warning("Brak hasła (st.secrets).")
         elif st.text_input("Hasło:", type="password") == haslo:
