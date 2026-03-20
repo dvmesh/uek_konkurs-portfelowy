@@ -13,26 +13,149 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
 
-# === KONFIGURACJA UI ===
+# === KONFIGURACJA ===
 st.set_page_config(page_title="Terminal Konkursowy", layout="wide")
 st_autorefresh(interval=60_000, key="auto_refresh")
-
 logger = logging.getLogger(__name__)
-
-KOLOR_ZYSK = "#4ade80"
-KOLOR_STRATA = "#f87171"
-KOLOR_NEUTRAL = "#9ca3af"
-KOLOR_ZOLTY = "#fbbf24"
-KOLOR_RYNEK = "#38bdf8"
-KOLOR_TLA_KART = "#262730"
 
 TZ_WARSAW = ZoneInfo("Europe/Warsaw")
 PLIK_USTAWIEN = "portfel.json"
 PLIK_LOGU = "log_zmian.json"
 
+# === PALETA KOLORÓW ===
+C = {
+    "gain": "#22c55e", "loss": "#ef4444", "warn": "#f59e0b", "info": "#3b82f6",
+    "muted": "#64748b", "text": "#e2e8f0", "text2": "#94a3b8",
+    "bg1": "#0f172a", "bg2": "#1e293b", "bg3": "#334155",
+    "border": "rgba(148,163,184,0.12)", "glow_g": "rgba(34,197,94,0.15)",
+    "glow_r": "rgba(239,68,68,0.12)",
+}
+# Kolory instrumentów
+CI = {"S&P 500": "#3b82f6", "US10Y Yield": "#a855f7",
+      "Złoto (Gold)": "#eab308", "EUR/USD": "#06b6d4"}
+
+# === GLOBAL CSS ===
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+:root {{
+    --gain: {C["gain"]}; --loss: {C["loss"]}; --warn: {C["warn"]};
+    --muted: {C["muted"]}; --bg2: {C["bg2"]}; --bg3: {C["bg3"]};
+    --border: {C["border"]}; --text: {C["text"]}; --text2: {C["text2"]};
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+}}
+.stApp {{ font-family: var(--font-sans) !important; }}
+.stApp [data-testid="stHeader"] {{ display: none; }}
+div[data-testid="stVerticalBlockBorderWrapper"] {{
+    border: none !important; background: none !important;
+}}
+.stat-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px; margin-bottom: 20px; }}
+.stat-card {{
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; overflow: hidden; transition: transform 0.15s;
+}}
+.stat-card:hover {{ transform: translateY(-2px); }}
+.stat-card::before {{
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent, var(--muted));
+}}
+.stat-label {{
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text2); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+}}
+.stat-value {{
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    color: var(--text); line-height: 1.1;
+}}
+.stat-sub {{
+    font-family: var(--font-mono); font-size: 11px; color: var(--text2);
+    margin-top: 6px;
+}}
+.section-label {{
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text2);
+    padding: 6px 0; margin: 28px 0 14px 0; border-bottom: 1px solid var(--border);
+    width: 100%;
+}}
+.ticker-strip {{
+    display: flex; gap: 24px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); margin-bottom: 18px;
+    overflow-x: auto; flex-wrap: nowrap;
+}}
+.ticker-item {{
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}}
+.ticker-name {{
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text2);
+}}
+.ticker-price {{
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text);
+}}
+.ticker-change {{
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    padding: 2px 6px; border-radius: 4px;
+}}
+.ticker-dot {{
+    width: 6px; height: 6px; border-radius: 50%;
+}}
+.rank-row {{
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 8px;
+    background: var(--bg2); border: 1px solid var(--border);
+    margin-bottom: 6px; transition: background 0.15s;
+}}
+.rank-row:hover {{ background: var(--bg3); }}
+.rank-pos {{
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; border-radius: 8px; flex-shrink: 0;
+}}
+.rank-name {{ font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }}
+.rank-score {{ font-family: var(--font-mono); font-size: 14px; font-weight: 700; }}
+.rank-dist {{
+    font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+    min-width: 60px; text-align: right;
+}}
+.sent-row {{
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+}}
+.sent-row:last-child {{ border-bottom: none; }}
+.sent-name {{
+    font-size: 12px; font-weight: 600; color: var(--text2);
+    min-width: 80px;
+}}
+.sent-bar-wrap {{
+    flex: 1; height: 22px; border-radius: 6px; overflow: hidden;
+    display: flex; background: rgba(255,255,255,0.04);
+}}
+.sent-bar {{
+    height: 100%; display: flex; align-items: center;
+    justify-content: center; font-family: var(--font-mono);
+    font-size: 10px; font-weight: 600; transition: width 0.4s;
+}}
+.sent-net {{
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    min-width: 50px; text-align: right;
+}}
+.pos-tag {{
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 6px; font-family: var(--font-mono);
+    font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+    background: var(--bg2);
+}}
+.pos-tag .dir {{ font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }}
+</style>
+""", unsafe_allow_html=True)
+
 
 # =============================================
-# ====== FUNKCJE POMOCNICZE (HELPERY) =========
+# ====== HELPERY ==============================
 # =============================================
 
 def wczytaj_dane_statyczne():
@@ -43,9 +166,8 @@ def wczytaj_dane_statyczne():
         st.error("Brak pliku dane_statyczne.json!")
         return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
     except json.JSONDecodeError as e:
-        st.error(f"Błąd parsowania dane_statyczne.json: {e}")
+        st.error(f"Błąd parsowania: {e}")
         return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
-
 
 def wczytaj_ustawienia():
     if os.path.exists(PLIK_USTAWIEN):
@@ -56,21 +178,16 @@ def wczytaj_ustawienia():
             logger.warning("portfel.json: %s", e)
     return {}
 
-
 def backup_portfela():
-    """Kopia zapasowa portfel.json przed nadpisaniem."""
     if os.path.exists(PLIK_USTAWIEN):
         ts = datetime.now(TZ_WARSAW).strftime('%Y%m%d_%H%M%S')
         shutil.copy2(PLIK_USTAWIEN, f"portfel_backup_{ts}.json")
-
 
 def zapisz_ustawienia(dane):
     with open(PLIK_USTAWIEN, "w", encoding="utf-8") as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
 
-
 def zapisz_log(grupa, stare, nowe):
-    """Timestamped diff do log_zmian.json."""
     log = []
     if os.path.exists(PLIK_LOGU):
         try:
@@ -78,201 +195,274 @@ def zapisz_log(grupa, stare, nowe):
                 log = json.load(f)
         except Exception:
             log = []
-    log.append({
-        "timestamp": datetime.now(TZ_WARSAW).isoformat(),
-        "grupa": grupa, "poprzednie": stare, "nowe": nowe,
-    })
+    log.append({"timestamp": datetime.now(TZ_WARSAW).isoformat(),
+                "grupa": grupa, "poprzednie": stare, "nowe": nowe})
     with open(PLIK_LOGU, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
-
-
-def render_karta(label, value, color):
-    st.markdown(f"""
-        <div style="padding:15px; text-align:center; background:{KOLOR_TLA_KART};
-                    border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
-            <div style="color:{KOLOR_NEUTRAL}; font-size:11px;
-                        text-transform:uppercase; letter-spacing:1px;">{label}</div>
-            <div style="color:{color}; font-weight:600; font-size:24px;
-                        margin-top:5px;">{value}</div>
-        </div>
-    """, unsafe_allow_html=True)
-
 
 def dodaj_serie_z_etykieta(fig, index, values, name, color,
                            width=2.0, dash=None, ax=40, ay=0,
                            fill=False, marker_size=7, label_prefix=""):
-    line_style = dict(color=color, width=width)
-    if dash:
-        line_style["dash"] = dash
+    ls = dict(color=color, width=width)
+    if dash: ls["dash"] = dash
     if fill:
-        fig.add_trace(go.Scatter(
-            x=index, y=values.clip(lower=0), fill='tozeroy',
-            fillcolor='rgba(74, 222, 128, 0.08)', line=dict(width=0), showlegend=False))
-        fig.add_trace(go.Scatter(
-            x=index, y=values.clip(upper=0), fill='tozeroy',
-            fillcolor='rgba(248, 113, 113, 0.08)', line=dict(width=0), showlegend=False))
-    fig.add_trace(go.Scatter(x=index, y=values, line=line_style, name=name))
-    ost_y = values.iloc[-1]
-    txt = f"{label_prefix}{ost_y:+.2f}" if label_prefix else f"<b>{ost_y:+.2f}</b>"
-    fig.add_annotation(
-        x=index[-1], y=ost_y, text=txt, showarrow=True, arrowhead=0,
+        fig.add_trace(go.Scatter(x=index, y=values.clip(lower=0), fill='tozeroy',
+            fillcolor=C["glow_g"], line=dict(width=0), showlegend=False))
+        fig.add_trace(go.Scatter(x=index, y=values.clip(upper=0), fill='tozeroy',
+            fillcolor=C["glow_r"], line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=index, y=values, line=ls, name=name))
+    oy = values.iloc[-1]
+    txt = f"{label_prefix}{oy:+.2f}" if label_prefix else f"<b>{oy:+.2f}</b>"
+    fig.add_annotation(x=index[-1], y=oy, text=txt, showarrow=True, arrowhead=0,
         arrowcolor=color, ax=ax, ay=ay,
         font=dict(color=color, size=11 if label_prefix else 13),
-        bgcolor="rgba(38,39,48,0.8)" if not label_prefix else "rgba(38,39,48,0.6)",
-        bordercolor=color if not label_prefix else None,
+        bgcolor=C["bg2"], bordercolor=color if not label_prefix else None,
         borderpad=3 if not label_prefix else 0)
-    fig.add_trace(go.Scatter(
-        x=[index[-1]], y=[ost_y], mode='markers',
+    fig.add_trace(go.Scatter(x=[index[-1]], y=[oy], mode='markers',
         marker=dict(color=color, size=marker_size), showlegend=False))
 
+def oblicz_max_drawdown(s):
+    return float((s - s.cummax()).min()) if not s.empty else 0.0
 
-def oblicz_max_drawdown(seria):
-    if seria.empty:
-        return 0.0
-    return float((seria - seria.cummax()).min())
+def buduj_historie_z_serii(wagi, hist):
+    sr = [(hist[n]*w).rename(n) for n, w in wagi.items() if w != 0 and n in hist]
+    return pd.concat(sr, axis=1).ffill().fillna(0) if sr else pd.DataFrame()
 
+def czy_gielda_zamknieta(t):
+    return t.weekday() in (5, 6) or (t.weekday() == 4 and t.hour >= 22)
 
-def buduj_historie_z_serii(wagi, historie):
-    serie = []
-    for n, w in wagi.items():
-        if w != 0 and n in historie:
-            serie.append((historie[n] * w).rename(n))
-    return pd.concat(serie, axis=1).ffill().fillna(0) if serie else pd.DataFrame()
+def znajdz_grupy_w_cashu(p):
+    return [n for n, d in p.items() if all(v == 0 for v in d.get("pozycje", {}).values())]
 
-
-def czy_gielda_zamknieta(czas):
-    d = czas.weekday()
-    return d in (5, 6) or (d == 4 and czas.hour >= 22)
+def skrot_inst(nazwa):
+    return nazwa.replace("S&P 500","SPX").replace("Złoto (Gold)","GOLD") \
+                .replace("US10Y Yield","10Y").replace("EUR/USD","EUR")
 
 
-def znajdz_grupy_w_cashu(portfele):
-    return [n for n, d in portfele.items()
-            if all(v == 0 for v in d.get("pozycje", {}).values())]
+# === UI RENDERERS ===
+
+def section_label(icon, text):
+    st.markdown(f'<div class="section-label">{icon}&nbsp;&nbsp;{text}</div>',
+                unsafe_allow_html=True)
+
+def render_ticker_strip(cache, zmiany):
+    """Pasek z cenami live na górze."""
+    items = ""
+    for nazwa in ["S&P 500", "Złoto (Gold)", "US10Y Yield", "EUR/USD"]:
+        h = cache.get(nazwa, pd.DataFrame())
+        if h.empty: continue
+        price = h['Close'].iloc[-1]
+        zmiana = zmiany.get(nazwa, 0) * 100
+        kol = C["gain"] if zmiana >= 0 else C["loss"]
+        bg = C["glow_g"] if zmiana >= 0 else C["glow_r"]
+        dot_col = CI.get(nazwa, C["muted"])
+        # Format price
+        if price > 500: p_fmt = f"{price:,.0f}"
+        elif price > 10: p_fmt = f"{price:,.2f}"
+        else: p_fmt = f"{price:,.4f}"
+        items += f"""
+            <div class="ticker-item">
+                <div class="ticker-dot" style="background:{dot_col};"></div>
+                <div>
+                    <div class="ticker-name">{skrot_inst(nazwa)}</div>
+                    <div class="ticker-price">{p_fmt}</div>
+                </div>
+                <div class="ticker-change" style="color:{kol};background:{bg};">
+                    {"▲" if zmiana >= 0 else "▼"} {abs(zmiana):.2f}%
+                </div>
+            </div>"""
+    st.markdown(f'<div class="ticker-strip">{items}</div>', unsafe_allow_html=True)
+
+
+def render_stat_cards(karty):
+    """Grid kart statystyk z ikonami i akcentami."""
+    html = '<div class="stat-grid">'
+    for icon, label, value, sub, accent in karty:
+        html += f"""
+            <div class="stat-card" style="--accent:{accent};">
+                <div class="stat-label">{icon} {label}</div>
+                <div class="stat-value" style="color:{accent};">{value}</div>
+                {'<div class="stat-sub">' + sub + '</div>' if sub else ''}
+            </div>"""
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_pozycje_tagi(dane_tabeli):
+    """Pozycje jako kolorowe tagi zamiast tabeli."""
+    if not dane_tabeli:
+        st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:12px;">Brak otwartych pozycji — portfel w gotówce.</div>', unsafe_allow_html=True)
+        return
+    html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0;">'
+    for p in dane_tabeli:
+        kol = C["gain"] if p["Wynik"] > 0 else (C["loss"] if p["Wynik"] < 0 else C["muted"])
+        dir_txt = "LONG" if p["Kierunek"] == "LONG" else "SHORT"
+        dir_col = C["gain"] if dir_txt == "LONG" else C["loss"]
+        html += f"""
+            <div class="pos-tag" style="border-color:{kol}40;">
+                <span class="dir" style="color:{dir_col};">{dir_txt}</span>
+                <span style="color:{C["text"]};">{skrot_inst(p["Instrument"])}</span>
+                <span style="color:{C["muted"]};">×{abs(p["Wielkość"]):.0f}</span>
+                <span style="color:{kol};margin-left:4px;font-size:11px;">{p["Wynik"]:+.2f}</span>
+            </div>"""
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_sentyment_bars(sentyment):
+    """Horizontal stacked bars zamiast pie chartów."""
+    html = '<div style="padding:4px 0;">'
+    for inst, ds in sentyment.items():
+        total = ds["LONG"] + ds["SHORT"]
+        l_pct = (ds["LONG"] / total * 100) if total > 0 else 0
+        s_pct = 100 - l_pct if total > 0 else 0
+        net = ds["LONG"] - ds["SHORT"]
+        net_col = C["gain"] if net > 0 else (C["loss"] if net < 0 else C["muted"])
+
+        bar_html = ""
+        if total == 0:
+            bar_html = f'<div class="sent-bar" style="width:100%;color:{C["muted"]};">—</div>'
+        else:
+            if l_pct > 0:
+                bar_html += f'<div class="sent-bar" style="width:{l_pct}%;background:{C["gain"]}30;color:{C["gain"]};">{l_pct:.0f}% L</div>'
+            if s_pct > 0:
+                bar_html += f'<div class="sent-bar" style="width:{s_pct}%;background:{C["loss"]}30;color:{C["loss"]};">{s_pct:.0f}% S</div>'
+
+        dot = CI.get(inst, C["muted"])
+        html += f"""
+            <div class="sent-row">
+                <span class="sent-name"><span style="color:{dot};">●</span> {skrot_inst(inst)}</span>
+                <div class="sent-bar-wrap">{bar_html}</div>
+                <span class="sent-net" style="color:{net_col};">{net:+.0f}</span>
+            </div>"""
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_ranking_html(ranking_df, wybrana, portfele):
+    """Custom HTML ranking z podium i position badges."""
+    html = ''
+    for i, (idx, row) in enumerate(ranking_df.iterrows()):
+        nazwa = row["Grupa"]
+        wynik = row["Wynik"]
+        dystans = row["Dystans do #1"]
+        zm = wynik - 100
+        kol = C["gain"] if zm >= 0 else C["loss"]
+        is_selected = nazwa == wybrana
+
+        # Position badge
+        if i == 0: bg, fg = C["warn"], "#000"
+        elif i == 1: bg, fg = C["bg3"], C["text"]
+        elif i == 2: bg, fg = "#92400e", "#fbbf24"
+        else: bg, fg = C["bg2"], C["muted"]
+
+        _cw = C["warn"]
+        sel_border = f"border-color:{_cw};" if is_selected else ""
+        sel_bg = f"background:{_cw}08;" if is_selected else ""
+
+        dist_txt = "" if i == 0 else f"{dystans:+.2f}"
+
+        html += f"""
+            <div class="rank-row" style="{sel_border}{sel_bg}">
+                <div class="rank-pos" style="background:{bg};color:{fg};">{idx}</div>
+                <div class="rank-name">{nazwa}{'  ◄' if is_selected else ''}</div>
+                <div class="rank-score" style="color:{kol};">{wynik:.2f}</div>
+                <div class="rank-dist">{dist_txt}</div>
+            </div>"""
+
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_overlay_zamkniecia(ranking, grupy_cash, wybrana, teraz, portfele):
-    """Overlay: podium z pozycjami TOP 3, pozycja wybranej grupy, cash warning."""
     medale = ["🥇", "🥈", "🥉"]
     top3_html = ""
     for i in range(min(3, len(ranking))):
         row = ranking.iloc[i]
-        nazwa, wynik = row["Grupa"], row["Wynik"]
-        zm = wynik - 100
-        kol = KOLOR_ZYSK if zm >= 0 else KOLOR_STRATA
-
-        poz = portfele.get(nazwa, {}).get("pozycje", {})
-        poz_html = ""
+        n, w = row["Grupa"], row["Wynik"]
+        zm = w - 100
+        kol = C["gain"] if zm >= 0 else C["loss"]
+        poz = portfele.get(n, {}).get("pozycje", {})
+        tags = ""
         for inst, waga in poz.items():
             if waga != 0:
-                skr = inst.replace("S&P 500","SPX").replace("Złoto (Gold)","GOLD") \
-                          .replace("US10Y Yield","10Y").replace("EUR/USD","EUR")
-                kp = KOLOR_ZYSK if waga > 0 else KOLOR_STRATA
-                kier = "L" if waga > 0 else "S"
-                poz_html += (f'<span style="display:inline-block;padding:2px 6px;margin:2px;'
-                             f'border-radius:4px;font-size:10px;background:rgba(255,255,255,0.06);'
-                             f'color:{kp};">{skr} {kier}{abs(waga):.0f}</span>')
-
+                kp = C["gain"] if waga > 0 else C["loss"]
+                d = "L" if waga > 0 else "S"
+                tags += f'<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;font-size:10px;background:rgba(255,255,255,0.06);color:{kp};font-family:var(--font-mono);">{skrot_inst(inst)} {d}{abs(waga):.0f}</span>'
         top3_html += f"""
-            <div style="padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.05);
-                        border-radius:8px;border-left:3px solid {kol};">
+            <div style="padding:12px 16px;margin:6px 0;background:rgba(255,255,255,0.04);border-radius:10px;border-left:3px solid {kol};">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:18px;">{medale[i]} <b>{nazwa}</b></span>
-                    <span style="color:{kol};font-weight:700;font-size:16px;">{wynik:.2f}
-                        <span style="font-size:12px;">({zm:+.2f}%)</span></span>
+                    <span style="font-size:17px;">{medale[i]} <b>{n}</b></span>
+                    <span style="color:{kol};font-weight:700;font-size:15px;font-family:var(--font-mono);">{w:.2f} <span style="font-size:11px;">({zm:+.2f}%)</span></span>
                 </div>
-                <div style="margin-top:6px;">{poz_html}</div>
+                <div style="margin-top:6px;">{tags}</div>
             </div>"""
 
-    poz_wybranej = ""
+    poz_w = ""
     if wybrana in ranking["Grupa"].values:
         idx = ranking[ranking["Grupa"]==wybrana].index[0]
         wr = ranking.loc[idx]
         wz = wr["Wynik"]-100
-        wk = KOLOR_ZYSK if wz >= 0 else KOLOR_STRATA
-        poz_wybranej = f"""
-            <div style="margin-top:16px;padding:14px 16px;background:rgba(251,191,36,0.1);
-                        border:1px solid {KOLOR_ZOLTY};border-radius:8px;text-align:center;">
-                <div style="color:{KOLOR_NEUTRAL};font-size:11px;text-transform:uppercase;
-                            letter-spacing:1px;">Twoja grupa</div>
-                <div style="font-size:20px;margin:4px 0;"><b>{wybrana}</b> —
-                    miejsce <b style="color:{KOLOR_ZOLTY};">#{idx}</b> / {len(ranking)}</div>
-                <div style="color:{wk};font-size:16px;font-weight:600;">
-                    Wynik: {wr['Wynik']:.2f} ({wz:+.2f}%)</div>
-            </div>"""
+        wk = C["gain"] if wz >= 0 else C["loss"]
+        poz_w = f'<div style="margin-top:16px;padding:14px 16px;background:{C["warn"]}10;border:1px solid {C["warn"]}40;border-radius:10px;text-align:center;"><div style="color:{C["text2"]};font-size:10px;text-transform:uppercase;letter-spacing:1px;">Twoja grupa</div><div style="font-size:18px;margin:4px 0;"><b>{wybrana}</b> — #{idx} / {len(ranking)}</div><div style="color:{wk};font-size:15px;font-weight:600;font-family:var(--font-mono);">{wr["Wynik"]:.2f} ({wz:+.2f}%)</div></div>'
 
-    cash_html = ""
+    cash_h = ""
     if grupy_cash:
         lista = ", ".join(f"<b>{g}</b>" for g in sorted(grupy_cash))
-        cash_html = f"""
-            <div style="margin-top:16px;padding:14px 16px;background:rgba(248,113,113,0.1);
-                        border:1px solid {KOLOR_STRATA};border-radius:8px;">
-                <div style="font-size:14px;color:{KOLOR_STRATA};margin-bottom:6px;">
-                    ⚠️ <b>Grupy bez pozycji (100% CASH):</b></div>
-                <div style="color:#e5e7eb;font-size:13px;line-height:1.6;">{lista}</div>
-                <div style="color:{KOLOR_NEUTRAL};font-size:12px;margin-top:8px;">
-                    Pamiętajcie o zgłoszeniu rebalansu przed niedzielą 23:00!</div>
-            </div>"""
+        cash_h = f'<div style="margin-top:16px;padding:14px 16px;background:{C["loss"]}10;border:1px solid {C["loss"]}40;border-radius:10px;"><div style="font-size:13px;color:{C["loss"]};margin-bottom:4px;">⚠️ <b>Grupy w CASH:</b></div><div style="color:{C["text2"]};font-size:12px;">{lista}</div><div style="color:{C["muted"]};font-size:11px;margin-top:6px;">Zgłoście rebalans przed niedzielą 23:00!</div></div>'
 
     dl = ""
-    if teraz.weekday() in (4, 5):
-        nd = teraz + timedelta(days=(6 - teraz.weekday()))
-        dl = f'<div style="margin-top:14px;text-align:center;color:{KOLOR_ZOLTY};font-size:13px;">🕐 Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
+    if teraz.weekday() in (4,5):
+        nd = teraz + timedelta(days=(6-teraz.weekday()))
+        dl = f'<div style="margin-top:14px;text-align:center;color:{C["warn"]};font-size:12px;">🕐 Okno rebalansu: <b>niedziela {nd.strftime("%d.%m")}, do 23:00</b></div>'
     elif teraz.weekday() == 6 and teraz.hour < 23:
-        dl = f'<div style="margin-top:14px;text-align:center;padding:10px;background:rgba(74,222,128,0.1);border:1px solid {KOLOR_ZYSK};border-radius:8px;"><span style="color:{KOLOR_ZYSK};font-size:14px;">🟢 <b>Okno rebalansu OTWARTE</b> — {23-teraz.hour}h do zamknięcia</span></div>'
-    elif teraz.weekday() == 6:
-        dl = f'<div style="margin-top:14px;text-align:center;color:{KOLOR_STRATA};font-size:13px;">🔒 Okno rebalansu zamknięte.</div>'
+        dl = f'<div style="margin-top:14px;text-align:center;padding:10px;background:{C["gain"]}10;border:1px solid {C["gain"]}40;border-radius:8px;"><span style="color:{C["gain"]};font-size:13px;">🟢 <b>Rebalans OTWARTY</b> — {23-teraz.hour}h</span></div>'
 
     st.markdown(f"""
-        <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;
-            z-index:99999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
-            display:flex;align-items:center;justify-content:center;">
-            <div style="background:#1a1b23;border:1px solid rgba(255,255,255,0.1);
-                border-radius:16px;padding:32px 36px;max-width:560px;width:90%;
-                max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);
-                position:relative;">
-                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'"
-                    style="position:absolute;top:12px;right:16px;background:none;border:none;
-                    color:{KOLOR_NEUTRAL};font-size:22px;cursor:pointer;padding:4px 8px;
-                    border-radius:6px;" title="Zamknij">✕</button>
+        <div id="overlay-zamkniecie" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;">
+            <div style="background:{C["bg1"]};border:1px solid {C["border"]};border-radius:16px;padding:32px 36px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.6);position:relative;font-family:var(--font-sans);">
+                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'" style="position:absolute;top:14px;right:18px;background:none;border:none;color:{C["muted"]};font-size:20px;cursor:pointer;">✕</button>
                 <div style="text-align:center;margin-bottom:20px;">
-                    <div style="font-size:28px;margin-bottom:4px;">🔔</div>
-                    <div style="font-size:22px;font-weight:700;color:#ffffff;">Giełda zamknięta</div>
-                    <div style="color:{KOLOR_NEUTRAL};font-size:13px;margin-top:4px;">
-                        Podsumowanie tygodnia — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
+                    <div style="font-size:32px;margin-bottom:6px;">🏁</div>
+                    <div style="font-size:20px;font-weight:700;color:{C["text"]};">Giełda zamknięta</div>
+                    <div style="color:{C["muted"]};font-size:12px;margin-top:4px;">Podsumowanie — {teraz.strftime('%d.%m.%Y, %H:%M')}</div>
                 </div>
-                <div style="color:{KOLOR_NEUTRAL};font-size:11px;text-transform:uppercase;
-                    letter-spacing:1px;margin-bottom:8px;">🏆 Podium (pozycje ujawnione)</div>
-                {top3_html}{poz_wybranej}{cash_html}{dl}
-                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'"
-                    style="display:block;width:100%;margin-top:20px;padding:12px;
-                    background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
-                    border-radius:8px;color:#ffffff;font-size:14px;cursor:pointer;">
-                    Przejdź do Terminala →</button>
+                <div style="color:{C["text2"]};font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Podium — pozycje ujawnione</div>
+                {top3_html}{poz_w}{cash_h}{dl}
+                <button onclick="document.getElementById('overlay-zamkniecie').style.display='none'" style="display:block;width:100%;margin-top:22px;padding:12px;background:rgba(255,255,255,0.06);border:1px solid {C["border"]};border-radius:10px;color:{C["text"]};font-size:13px;cursor:pointer;font-family:var(--font-sans);font-weight:600;">Przejdź do Terminala →</button>
             </div>
         </div>""", unsafe_allow_html=True)
 
 
 def render_banner_cash(grupy_cash):
-    if not grupy_cash:
-        return
+    if not grupy_cash: return
     lista = ", ".join(grupy_cash[:8])
-    reszta = f" i {len(grupy_cash)-8} więcej..." if len(grupy_cash) > 8 else ""
+    reszta = f" +{len(grupy_cash)-8}" if len(grupy_cash) > 8 else ""
     st.markdown(f"""
-        <div style="padding:10px 16px;background:rgba(251,191,36,0.1);
-                    border:1px solid {KOLOR_ZOLTY};border-radius:8px;
-                    margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-            <span style="font-size:20px;">💤</span>
+        <div style="padding:10px 16px;background:{C["warn"]}0D;border:1px solid {C["warn"]}30;
+                    border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">💤</span>
             <div>
-                <div style="color:{KOLOR_ZOLTY};font-size:13px;font-weight:600;">
-                    Grupy w 100% CASH (brak otwartych pozycji)</div>
-                <div style="color:{KOLOR_NEUTRAL};font-size:12px;">
-                    {lista}{reszta} — zgłoście rebalans do obsługi konkursu!</div>
+                <div style="color:{C["warn"]};font-size:12px;font-weight:600;">Grupy w 100% CASH</div>
+                <div style="color:{C["text2"]};font-size:11px;">{lista}{reszta} — zgłoście rebalans!</div>
             </div>
         </div>""", unsafe_allow_html=True)
 
 
+# plotly layout helper
+def dark_layout(**kw):
+    base = dict(
+        template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family="DM Sans, sans-serif"),
+        yaxis=dict(gridcolor='rgba(148,163,184,0.06)', zerolinecolor='rgba(148,163,184,0.12)'),
+        xaxis=dict(gridcolor='rgba(148,163,184,0.06)'),
+        margin=dict(l=10, r=20, t=10, b=10),
+    )
+    base.update(kw)
+    return base
+
+
 # =============================================
-# ====== ŁADOWANIE DANYCH ====================
+# ====== DATA LOADING ========================
 # =============================================
 
 dane_stat = wczytaj_dane_statyczne()
@@ -285,185 +475,134 @@ aktywne_portfele = {}
 for g_nazwa, g_poz in DANE_GRUP.items():
     aktywne_portfele[g_nazwa] = {
         "kapital_startowy": 100.0,
-        "pozycje": {
-            "S&P 500": g_poz.get("SPX", 0.0),
-            "Złoto (Gold)": g_poz.get("GOLD", 0.0),
-            "US10Y Yield": g_poz.get("RENT", 0.0),
-            "EUR/USD": g_poz.get("EURUSD", 0.0),
-        }
+        "pozycje": {"S&P 500": g_poz.get("SPX", 0.0), "Złoto (Gold)": g_poz.get("GOLD", 0.0),
+                    "US10Y Yield": g_poz.get("RENT", 0.0), "EUR/USD": g_poz.get("EURUSD", 0.0)}
     }
-
 for g_nazwa, g_dane in ustawienia.items():
     if isinstance(g_dane, dict) and "kapital_startowy" in g_dane and "pozycje" in g_dane:
         aktywne_portfele[g_nazwa] = g_dane
 
-
-# === LOGIKA CZASU ===
 teraz = datetime.now(TZ_WARSAW)
-ostatni_poniedzialek = teraz - timedelta(days=teraz.weekday())
-data_startu_str = ostatni_poniedzialek.strftime('%Y-%m-%d')
-
-dni_do_niedzieli = 6 - teraz.weekday()
-najblizsza_niedziela = teraz + timedelta(days=dni_do_niedzieli)
-deadline = najblizsza_niedziela.replace(hour=23, minute=0, second=0, microsecond=0)
-if teraz > deadline:
-    deadline += timedelta(days=7)
+ostatni_pon = teraz - timedelta(days=teraz.weekday())
+data_startu_str = ostatni_pon.strftime('%Y-%m-%d')
+dni_do_nd = 6 - teraz.weekday()
+nd = teraz + timedelta(days=dni_do_nd)
+deadline = nd.replace(hour=23, minute=0, second=0, microsecond=0)
+if teraz > deadline: deadline += timedelta(days=7)
 roznica = deadline - teraz
-czy_mozna_rebalansowac = (teraz.weekday() == 6) and (teraz.hour < 23)
+czy_rebalans = (teraz.weekday() == 6) and (teraz.hour < 23)
 
-
-# === POBIERANIE DANYCH ===
 @st.cache_data(ttl=60)
-def pobierz_dane_rynkowe(ticker, data_startu):
+def pobierz(ticker, start):
     try:
-        hist = yf.Ticker(ticker).history(start=data_startu, interval="1h")
-        if hist.empty:
-            hist = yf.Ticker(ticker).history(period="5d", interval="1h")
-        if not hist.empty:
-            if hist.index.tz is not None:
-                hist.index = hist.index.tz_convert('Europe/Warsaw')
-            hist.index = hist.index.tz_localize(None)
-        return hist
+        h = yf.Ticker(ticker).history(start=start, interval="1h")
+        if h.empty: h = yf.Ticker(ticker).history(period="5d", interval="1h")
+        if not h.empty:
+            if h.index.tz is not None: h.index = h.index.tz_convert('Europe/Warsaw')
+            h.index = h.index.tz_localize(None)
+        return h
     except Exception as e:
-        logger.error("yfinance %s: %s", ticker, e)
+        logger.error("yf %s: %s", ticker, e)
         return pd.DataFrame()
 
-zmiany_rynkowe = {}
-wszystkie_historie_zmian = {}
-dane_rynkowe_cache = {}
+zmiany = {}
+hist_all = {}
+cache_rynk = {}
 
-with st.spinner('Synchronizacja danych rynkowych...'):
+with st.spinner('Synchronizacja...'):
     for nazwa, ticker in TICKERY.items():
-        hist = pobierz_dane_rynkowe(ticker, data_startu_str)
-        dane_rynkowe_cache[nazwa] = hist
-        if not hist.empty:
-            cena_otw = hist['Open'].iloc[0]
-            cena_live = hist['Close'].iloc[-1]
-            if cena_otw != 0:
-                zmiany_rynkowe[nazwa] = (cena_live - cena_otw) / cena_otw
-                wszystkie_historie_zmian[nazwa] = (hist['Close'] - cena_otw) / cena_otw
+        h = pobierz(ticker, data_startu_str)
+        cache_rynk[nazwa] = h
+        if not h.empty:
+            o = h['Open'].iloc[0]
+            if o != 0:
+                zmiany[nazwa] = (h['Close'].iloc[-1] - o) / o
+                hist_all[nazwa] = (h['Close'] - o) / o
 
-if not zmiany_rynkowe:
-    st.warning("⚠️ Brak danych rynkowych. Wyniki mogą być nieaktualne.")
+if not zmiany:
+    st.warning("⚠️ Brak danych rynkowych.")
 
-
-# === RANKING (jednorazowe przejście) ===
-wyniki_rankingu = []
+# === RANKING ===
+wyniki = []
 sentyment = {k: {"LONG": 0, "SHORT": 0} for k in TICKERY}
-srednie_wagi = {k: 0.0 for k in TICKERY}
-liczba_grup = len(aktywne_portfele)
+sr_wagi = {k: 0.0 for k in TICKERY}
+n_grup = len(aktywne_portfele)
 
-for g_nazwa, g_dane in aktywne_portfele.items():
-    wynik_g = g_dane["kapital_startowy"]
-    for inst, waga in g_dane["pozycje"].items():
-        if inst in zmiany_rynkowe:
-            wynik_g += waga * zmiany_rynkowe[inst]
+for gn, gd in aktywne_portfele.items():
+    w = gd["kapital_startowy"]
+    for inst, waga in gd["pozycje"].items():
+        if inst in zmiany: w += waga * zmiany[inst]
         if inst in sentyment:
             if waga > 0: sentyment[inst]["LONG"] += waga
             elif waga < 0: sentyment[inst]["SHORT"] += abs(waga)
-        if inst in srednie_wagi:
-            srednie_wagi[inst] += waga / liczba_grup if liczba_grup > 0 else 0
-    wyniki_rankingu.append({"Grupa": g_nazwa, "Wynik": round(wynik_g, 4)})
+        if inst in sr_wagi: sr_wagi[inst] += waga / n_grup if n_grup > 0 else 0
+    wyniki.append({"Grupa": gn, "Wynik": round(w, 4)})
 
-ranking_df = (pd.DataFrame(wyniki_rankingu)
-              .sort_values(by="Wynik", ascending=False).reset_index(drop=True))
+ranking_df = pd.DataFrame(wyniki).sort_values("Wynik", ascending=False).reset_index(drop=True)
 ranking_df.index += 1
-
-# Dystans do lidera
-wynik_lidera = ranking_df.iloc[0]["Wynik"] if not ranking_df.empty else 100.0
-ranking_df["Dystans do #1"] = round(ranking_df["Wynik"] - wynik_lidera, 4)
-lider_konkursu = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
+w_lidera = ranking_df.iloc[0]["Wynik"] if not ranking_df.empty else 100.0
+ranking_df["Dystans do #1"] = round(ranking_df["Wynik"] - w_lidera, 4)
+lider = ranking_df.iloc[0]["Grupa"] if not ranking_df.empty else "Grupa 13"
 
 
-# === UI: WYBÓR GRUPY ===
-lista_grup = sorted(list(aktywne_portfele.keys()))
-idx_domyslny = lista_grup.index(lider_konkursu) if lider_konkursu in lista_grup else 0
-
+# === UI: SELEKTOR ===
+lista_grup = sorted(aktywne_portfele.keys())
+idx_def = lista_grup.index(lider) if lider in lista_grup else 0
 col_t, col_w = st.columns([2, 1])
 with col_w:
-    wybrana_grupa = st.selectbox("Wybór portfela:", lista_grup, index=idx_domyslny)
+    wybrana = st.selectbox("Wybór portfela:", lista_grup, index=idx_def, label_visibility="collapsed")
 with col_t:
-    st.title(f"Widok portfela: {wybrana_grupa}")
+    st.markdown(f'<div style="font-size:26px;font-weight:700;color:{C["text"]};padding:6px 0;">{wybrana}</div>', unsafe_allow_html=True)
 
 # === OVERLAY ===
-gielda_zamknieta = czy_gielda_zamknieta(teraz)
+gielda_off = czy_gielda_zamknieta(teraz)
 grupy_cash = znajdz_grupy_w_cashu(aktywne_portfele)
+if gielda_off:
+    wk = ostatni_pon.strftime('%Y-%m-%d')
+    if st.session_state.get("_ow") != wk:
+        st.session_state["_oh"] = False; st.session_state["_ow"] = wk
+    if not st.session_state.get("_oh", False):
+        render_overlay_zamkniecia(ranking_df, grupy_cash, wybrana, teraz, aktywne_portfele)
 
-if gielda_zamknieta:
-    wk = ostatni_poniedzialek.strftime('%Y-%m-%d')
-    if st.session_state.get("_overlay_week") != wk:
-        st.session_state["_overlay_ukryty"] = False
-        st.session_state["_overlay_week"] = wk
-    if not st.session_state.get("_overlay_ukryty", False):
-        render_overlay_zamkniecia(ranking_df, grupy_cash, wybrana_grupa, teraz, aktywne_portfele)
+# === OBLICZENIA PORTFELA ===
+kap = float(aktywne_portfele[wybrana]["kapital_startowy"])
+poz = aktywne_portfele[wybrana]["pozycje"]
+zysk = 0.0; dane_tab = []; wklady = {}
 
+for nazwa, wiel in poz.items():
+    if wiel != 0 and nazwa in zmiany:
+        wp = wiel * zmiany[nazwa]
+        zysk += wp; wklady[nazwa] = wp
+        h = cache_rynk.get(nazwa, pd.DataFrame())
+        dane_tab.append({"Instrument": nazwa, "Kierunek": "LONG" if wiel > 0 else "SHORT",
+                         "Wielkość": wiel,
+                         "Cena Start": h['Open'].iloc[0] if not h.empty else 0,
+                         "Cena LIVE": h['Close'].iloc[-1] if not h.empty else 0,
+                         "Wynik": wp})
 
-# === OBLICZENIA DLA WYBRANEJ GRUPY ===
-kapital_poczatkowy = float(aktywne_portfele[wybrana_grupa]["kapital_startowy"])
-pozycje_z_panelu = aktywne_portfele[wybrana_grupa]["pozycje"]
+stan = kap + zysk
+zm_prc = (zysk / kap * 100) if kap != 0 else 0
+hp = buduj_historie_z_serii(poz, hist_all)
+ha = buduj_historie_z_serii(sr_wagi, hist_all)
+hr = buduj_historie_z_serii({n: 25.0 for n in TICKERY}, hist_all)
+alfa = zm_prc - sum(25.0*z for z in zmiany.values())
+wins = sum(1 for p in dane_tab if p["Wynik"] > 0)
+n_poz = len(dane_tab)
+hit = (wins/n_poz*100) if n_poz > 0 else 0.0
+mdd = (oblicz_max_drawdown(hp.sum(axis=1)+kap)/kap*100) if not hp.empty and kap!=0 else 0.0
 
-zysk_laczny = 0.0
-dane_do_tabeli = []
-wklady_instrumentow = {}
-
-for nazwa, wielkosc in pozycje_z_panelu.items():
-    if wielkosc != 0 and nazwa in zmiany_rynkowe:
-        wynik_poz = wielkosc * zmiany_rynkowe[nazwa]
-        zysk_laczny += wynik_poz
-        wklady_instrumentow[nazwa] = wynik_poz
-
-        hist = dane_rynkowe_cache.get(nazwa, pd.DataFrame())
-        c_start = hist['Open'].iloc[0] if not hist.empty else 0
-        c_live = hist['Close'].iloc[-1] if not hist.empty else 0
-        dane_do_tabeli.append({
-            "Instrument": nazwa,
-            "Kierunek": "LONG" if wielkosc > 0 else "SHORT",
-            "Wielkość": wielkosc,
-            "Cena Start": c_start, "Cena LIVE": c_live, "Wynik": wynik_poz,
-        })
-
-stan_konta = kapital_poczatkowy + zysk_laczny
-zmiana_proc = (zysk_laczny / kapital_poczatkowy * 100) if kapital_poczatkowy != 0 else 0
-
-historia_portfela = buduj_historie_z_serii(pozycje_z_panelu, wszystkie_historie_zmian)
-historia_sredniej = buduj_historie_z_serii(srednie_wagi, wszystkie_historie_zmian)
-historia_rynku = buduj_historie_z_serii(
-    {n: 25.0 for n in TICKERY}, wszystkie_historie_zmian)
-
-zysk_rynku = sum(25.0 * z for z in zmiany_rynkowe.values())
-alfa_proc = zmiana_proc - zysk_rynku
-
-zwyciestwa = sum(1 for p in dane_do_tabeli if p["Wynik"] > 0)
-wszystkie_pozycje = len(dane_do_tabeli)
-skutecznosc = (zwyciestwa / wszystkie_pozycje * 100) if wszystkie_pozycje > 0 else 0.0
-
-if not historia_portfela.empty:
-    s_total = historia_portfela.sum(axis=1) + kapital_poczatkowy
-    mdd_proc = (oblicz_max_drawdown(s_total) / kapital_poczatkowy * 100) if kapital_poczatkowy != 0 else 0.0
+moje_m = ranking_df[ranking_df['Grupa']==wybrana].index[0] if wybrana in ranking_df['Grupa'].values else 0
+ks = f"pm_{wybrana}"
+if ks not in st.session_state: st.session_state[ks] = moje_m
 else:
-    mdd_proc = 0.0
+    if moje_m < st.session_state[ks]: st.toast(f"📈 Awans: {wybrana} → #{moje_m}")
+    elif moje_m > st.session_state[ks]: st.toast(f"📉 Spadek: {wybrana} → #{moje_m}")
+    st.session_state[ks] = moje_m
 
-# Pozycja w rankingu
-moje_miejsce = (ranking_df[ranking_df['Grupa']==wybrana_grupa].index[0]
-                if wybrana_grupa in ranking_df['Grupa'].values else 0)
-
-klucz_sesji = f"pop_m_{wybrana_grupa}"
-if klucz_sesji not in st.session_state:
-    st.session_state[klucz_sesji] = moje_miejsce
-else:
-    if moje_miejsce < st.session_state[klucz_sesji]:
-        st.toast(f"📈 Awans: {wybrana_grupa} → #{moje_miejsce}")
-    elif moje_miejsce > st.session_state[klucz_sesji]:
-        st.toast(f"📉 Spadek: {wybrana_grupa} → #{moje_miejsce}")
-    st.session_state[klucz_sesji] = moje_miejsce
-
-# Historia pozycji w rankingu (do wykresu w sesji)
-hk = f"hist_poz_{wybrana_grupa}"
-if hk not in st.session_state:
-    st.session_state[hk] = []
-st.session_state[hk].append({"czas": teraz.strftime('%H:%M'), "miejsce": moje_miejsce})
-if len(st.session_state[hk]) > 120:
-    st.session_state[hk] = st.session_state[hk][-120:]
+hk = f"hp_{wybrana}"
+if hk not in st.session_state: st.session_state[hk] = []
+st.session_state[hk].append({"t": teraz.strftime('%H:%M'), "m": moje_m})
+if len(st.session_state[hk]) > 120: st.session_state[hk] = st.session_state[hk][-120:]
 
 
 # ==========================================
@@ -471,349 +610,185 @@ if len(st.session_state[hk]) > 120:
 # ==========================================
 
 with st.sidebar:
-    if gielda_zamknieta:
-        if st.checkbox("Ukryj podsumowanie weekendowe",
-                        value=st.session_state.get("_overlay_ukryty", False),
-                        key="_chk_overlay"):
-            st.session_state["_overlay_ukryty"] = True
-        else:
-            st.session_state["_overlay_ukryty"] = False
+    if gielda_off:
+        if st.checkbox("Ukryj overlay", value=st.session_state.get("_oh", False), key="_co"):
+            st.session_state["_oh"] = True
+        else: st.session_state["_oh"] = False
         st.divider()
 
     st.header("Panel Administratora")
-    if not czy_mozna_rebalansowac:
+    if not czy_rebalans:
         st.error("Zablokowane")
         st.info(f"Otwarcie za: {roznica.days}d {roznica.seconds//3600}h")
     else:
         st.success("Sesja rebalansu otwarta")
         haslo = st.secrets.get("ADMIN_PASSWORD", os.environ.get("ADMIN_PASSWORD", ""))
-        if not haslo:
-            st.warning("Brak skonfigurowanego hasła (st.secrets / env).")
+        if not haslo: st.warning("Brak hasła (st.secrets).")
         elif st.text_input("Hasło:", type="password") == haslo:
             st.divider()
-            tryb = st.radio("Tryb:", ["Pojedyncza grupa", "Batch (tabela)"], horizontal=True)
-
-            if tryb == "Pojedyncza grupa":
+            tryb = st.radio("Tryb:", ["Pojedyncza", "Batch"], horizontal=True)
+            if tryb == "Pojedyncza":
                 gr = st.selectbox("Grupa:", sorted(aktywne_portfele.keys()))
-                kap = aktywne_portfele[gr]["kapital_startowy"]
-                poz = aktywne_portfele[gr]["pozycje"]
-                wypr = kap + sum(poz.get(i,0)*zmiany_rynkowe.get(i,0) for i in poz)
-
+                gkap = aktywne_portfele[gr]["kapital_startowy"]
+                gpoz = aktywne_portfele[gr]["pozycje"]
+                wypr = gkap + sum(gpoz.get(i,0)*zmiany.get(i,0) for i in gpoz)
                 nk = st.number_input(f"Kapitał ({gr})", value=float(round(wypr, 2)))
-                np_ = {k: st.number_input(k, value=float(poz.get(k,0)), step=5.0) for k in TICKERY}
-
-                if sum(abs(v) for v in np_.values()) > nk:
-                    st.error("Limit zaangażowania przekroczony.")
+                np_ = {k: st.number_input(k, value=float(gpoz.get(k,0)), step=5.0) for k in TICKERY}
+                if sum(abs(v) for v in np_.values()) > nk: st.error("Limit przekroczony.")
                 elif st.button("Zapisz"):
-                    stare = aktywne_portfele.get(gr, {})
-                    nowe = {"kapital_startowy": nk, "pozycje": np_}
                     backup_portfela()
-                    ustawienia[gr] = nowe
-                    zapisz_ustawienia(ustawienia)
-                    zapisz_log(gr, stare, nowe)
-                    st.cache_data.clear()
-                    st.success(f"✅ {gr} zapisana + backup + log")
-                    st.rerun()
-
-            else:  # BATCH
-                st.markdown("#### Batch Edit")
-                st.caption("Edytuj tabelę, kliknij 'Zapisz batch'.")
-
+                    ustawienia[gr] = {"kapital_startowy": nk, "pozycje": np_}
+                    zapisz_ustawienia(ustawienia); zapisz_log(gr, aktywne_portfele.get(gr,{}), ustawienia[gr])
+                    st.cache_data.clear(); st.success(f"✅ {gr}"); st.rerun()
+            else:
+                st.caption("Edytuj, kliknij Zapisz batch.")
                 rows = []
                 for gn in sorted(aktywne_portfele.keys()):
-                    g = aktywne_portfele[gn]
-                    k = g["kapital_startowy"]
-                    wypr = k + sum(g["pozycje"].get(i,0)*zmiany_rynkowe.get(i,0)
-                                   for i in g["pozycje"])
-                    rows.append({
-                        "Grupa": gn, "Kapitał": round(wypr, 2),
-                        "SPX": g["pozycje"].get("S&P 500", 0.0),
-                        "GOLD": g["pozycje"].get("Złoto (Gold)", 0.0),
-                        "10Y": g["pozycje"].get("US10Y Yield", 0.0),
-                        "EUR": g["pozycje"].get("EUR/USD", 0.0),
-                    })
-
-                ed = st.data_editor(
-                    pd.DataFrame(rows),
-                    column_config={
-                        "Grupa": st.column_config.TextColumn(disabled=True),
-                        "Kapitał": st.column_config.NumberColumn(step=0.01),
-                        "SPX": st.column_config.NumberColumn(step=5),
-                        "GOLD": st.column_config.NumberColumn(step=5),
-                        "10Y": st.column_config.NumberColumn(step=5),
-                        "EUR": st.column_config.NumberColumn(step=5),
-                    },
-                    use_container_width=True, hide_index=True, key="batch_ed")
-
-                errs = []
-                for _, r in ed.iterrows():
-                    z = abs(r["SPX"])+abs(r["GOLD"])+abs(r["10Y"])+abs(r["EUR"])
-                    if z > r["Kapitał"]:
-                        errs.append(f'{r["Grupa"]}: {z:.0f} > {r["Kapitał"]:.0f}')
-                for e in errs:
-                    st.error(e)
-
+                    g = aktywne_portfele[gn]; k = g["kapital_startowy"]
+                    wypr = k+sum(g["pozycje"].get(i,0)*zmiany.get(i,0) for i in g["pozycje"])
+                    rows.append({"Grupa":gn,"Kap":round(wypr,2),"SPX":g["pozycje"].get("S&P 500",0.0),
+                                 "GOLD":g["pozycje"].get("Złoto (Gold)",0.0),
+                                 "10Y":g["pozycje"].get("US10Y Yield",0.0),
+                                 "EUR":g["pozycje"].get("EUR/USD",0.0)})
+                ed = st.data_editor(pd.DataFrame(rows),
+                    column_config={"Grupa":st.column_config.TextColumn(disabled=True)},
+                    use_container_width=True, hide_index=True, key="be")
+                errs = [f'{r["Grupa"]}' for _,r in ed.iterrows() if abs(r["SPX"])+abs(r["GOLD"])+abs(r["10Y"])+abs(r["EUR"])>r["Kap"]]
+                for e in errs: st.error(f"Limit: {e}")
                 if not errs and st.button("💾 Zapisz batch"):
-                    backup_portfela()
-                    cnt = 0
-                    for _, r in ed.iterrows():
-                        gn = r["Grupa"]
-                        stare = aktywne_portfele.get(gn, {})
-                        nowe = {"kapital_startowy": r["Kapitał"], "pozycje": {
-                            "S&P 500": r["SPX"], "Złoto (Gold)": r["GOLD"],
-                            "US10Y Yield": r["10Y"], "EUR/USD": r["EUR"],
-                        }}
-                        if nowe != stare:
-                            zapisz_log(gn, stare, nowe)
-                            cnt += 1
-                        ustawienia[gn] = nowe
-                    zapisz_ustawienia(ustawienia)
-                    st.cache_data.clear()
-                    st.success(f"✅ {cnt} grup zmienionych, backup + log OK")
-                    st.rerun()
+                    backup_portfela(); cnt=0
+                    for _,r in ed.iterrows():
+                        n={"kapital_startowy":r["Kap"],"pozycje":{"S&P 500":r["SPX"],"Złoto (Gold)":r["GOLD"],"US10Y Yield":r["10Y"],"EUR/USD":r["EUR"]}}
+                        if n!=aktywne_portfele.get(r["Grupa"],{}): zapisz_log(r["Grupa"],aktywne_portfele.get(r["Grupa"],{}),n); cnt+=1
+                        ustawienia[r["Grupa"]]=n
+                    zapisz_ustawienia(ustawienia); st.cache_data.clear()
+                    st.success(f"✅ {cnt} zmian"); st.rerun()
 
-    # === EKSPORT XLSX ===
     st.divider()
-    st.markdown("### Eksport danych")
-    if st.button("📊 Pobierz ranking (.xlsx)"):
+    if st.button("📊 Eksport .xlsx"):
         buf = io.BytesIO()
         with pd.ExcelWriter(buf, engine='openpyxl') as wr:
             ranking_df.to_excel(wr, sheet_name='Ranking', index=True)
-            pr = []
-            for gn in sorted(aktywne_portfele.keys()):
-                g = aktywne_portfele[gn]
-                row = {"Grupa": gn, "Kapitał": g["kapital_startowy"]}
-                row.update(g["pozycje"])
-                pr.append(row)
+            pr=[{"Grupa":gn,"Kapitał":g["kapital_startowy"],**g["pozycje"]} for gn,g in sorted(aktywne_portfele.items())]
             pd.DataFrame(pr).to_excel(wr, sheet_name='Pozycje', index=False)
-
             if os.path.exists(PLIK_LOGU):
                 try:
-                    with open(PLIK_LOGU, "r", encoding="utf-8") as f:
-                        ld = json.load(f)
-                    lf = [{"Timestamp": w["timestamp"], "Grupa": w["grupa"],
-                           "Nowy Kap": w["nowe"].get("kapital_startowy",""),
-                           "SPX": w["nowe"].get("pozycje",{}).get("S&P 500",""),
-                           "GOLD": w["nowe"].get("pozycje",{}).get("Złoto (Gold)",""),
-                           "10Y": w["nowe"].get("pozycje",{}).get("US10Y Yield",""),
-                           "EUR": w["nowe"].get("pozycje",{}).get("EUR/USD",""),
-                           } for w in ld]
-                    pd.DataFrame(lf).to_excel(wr, sheet_name='Log zmian', index=False)
-                except Exception:
-                    pass
-
-        st.download_button("⬇️ Pobierz Excel", data=buf.getvalue(),
-            file_name=f"ranking_{teraz.strftime('%Y%m%d_%H%M')}.xlsx",
+                    with open(PLIK_LOGU,"r",encoding="utf-8") as f: ld=json.load(f)
+                    pd.DataFrame([{"Czas":w["timestamp"],"Grupa":w["grupa"],**{k:w["nowe"].get("pozycje",{}).get(k,"") for k in TICKERY}} for w in ld]).to_excel(wr, sheet_name='Log', index=False)
+                except: pass
+        st.download_button("⬇️ Pobierz", data=buf.getvalue(),
+            file_name=f"ranking_{teraz.strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.divider()
-    st.markdown("### Informacje o systemie")
-    st.markdown("**Autor:** Antoni Bulsiewicz")
-    st.markdown("[GitHub](https://github.com/dvmesh/uek_konkurs-portfelowy)")
+    st.markdown(f'<div style="margin-top:40px;padding-top:12px;border-top:1px solid {C["border"]};"><div style="color:{C["muted"]};font-size:11px;">Antoni Bulsiewicz · <a href="https://github.com/dvmesh/uek_konkurs-portfelowy" style="color:{C["info"]};">GitHub</a></div></div>', unsafe_allow_html=True)
 
 
 # ==========================================
-# ====== UI LAYOUT =========================
+# ====== MAIN UI ===========================
 # ==========================================
 
+# 0. TICKER STRIP
+render_ticker_strip(cache_rynk, zmiany)
+
+# 0.5 CASH BANNER
 if grupy_cash:
     render_banner_cash(grupy_cash)
 
-# 1. KARTY
-karty = [
-    ("Stan konta", f"{stan_konta:.2f}", "#ffffff"),
-    ("Zysk", f"{zysk_laczny:+.2f}", KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA),
-    ("Stopa zwrotu", f"{zmiana_proc:+.2f}%",
-     KOLOR_ZYSK if zmiana_proc >= 0 else KOLOR_STRATA),
-    ("Alfa (vs Rynek)", f"{alfa_proc:+.2f}%",
-     KOLOR_ZYSK if alfa_proc > 0 else (KOLOR_STRATA if alfa_proc < 0 else KOLOR_NEUTRAL)),
-    ("MDD (tyg.)", f"{mdd_proc:+.2f}%",
-     KOLOR_STRATA if mdd_proc < -1 else (KOLOR_ZOLTY if mdd_proc < 0 else KOLOR_ZYSK)),
-    ("Skuteczność", f"{skutecznosc:.0f}%",
-     KOLOR_ZYSK if skutecznosc >= 50 else (
-         KOLOR_STRATA if wszystkie_pozycje > 0 else KOLOR_NEUTRAL)),
-    ("Pozycja", f"{moje_miejsce} / {len(ranking_df)}",
-     KOLOR_ZOLTY if moje_miejsce <= 3 else "#ffffff"),
-]
-kols = st.columns(len(karty))
-for i, (l, v, c) in enumerate(karty):
-    with kols[i]:
-        render_karta(l, v, c)
+# 1. STAT CARDS
+pos_label = f"#{moje_m}" if moje_m <= 3 else f"#{moje_m}"
+pos_sub = "z " + str(len(ranking_df))
+dist = ranking_df.loc[ranking_df["Grupa"]==wybrana, "Dystans do #1"].values
+dist_val = dist[0] if len(dist) else 0
 
-st.markdown("<br>", unsafe_allow_html=True)
-st.divider()
+render_stat_cards([
+    ("💰", "Stan konta", f"{stan:.2f}", f"start: {kap:.0f}", C["text"]),
+    ("📊", "P&L tygodnia", f"{zysk:+.2f}", f"{zm_prc:+.2f}%", C["gain"] if zysk >= 0 else C["loss"]),
+    ("⚡", "Alfa vs rynek", f"{alfa:+.2f}%", "vs 4×25 benchmark", C["gain"] if alfa > 0 else (C["loss"] if alfa < 0 else C["muted"])),
+    ("📉", "Max Drawdown", f"{mdd:+.2f}%", "tygodniowe MDD", C["loss"] if mdd < -1 else (C["warn"] if mdd < 0 else C["gain"])),
+    ("🎯", "Hit Rate", f"{hit:.0f}%", f"{wins}/{n_poz} pozycji", C["gain"] if hit >= 50 else (C["loss"] if n_poz > 0 else C["muted"])),
+    ("🏆", "Pozycja", pos_label, f"{pos_sub} · dystans {dist_val:+.2f}", C["warn"] if moje_m <= 3 else C["text"]),
+])
 
 
-# 2. WYKRES PORTFELA
-st.subheader("Stopa Zwrotu (vs Benchmark)")
+# 2. POZYCJE (tagi)
+section_label("📋", "Otwarte pozycje")
+render_pozycje_tagi(dane_tab)
+
+# 3. WYKRES PORTFELA
+section_label("📈", "Stopa zwrotu vs benchmark")
 fig = go.Figure()
-if not historia_portfela.empty:
-    tm = historia_portfela.sum(axis=1)
-    dodaj_serie_z_etykieta(fig, tm.index, tm, wybrana_grupa,
-                           color='#e5e7eb', width=2.5, fill=True)
-if not historia_sredniej.empty:
-    ta = historia_sredniej.sum(axis=1)
-    dodaj_serie_z_etykieta(fig, ta.index, ta, 'Średnia Konkursu',
-                           color='rgba(251,191,36,0.6)', width=1.5, dash='dot',
-                           ax=45, ay=-25, marker_size=5, label_prefix="Śr: ")
-if not historia_rynku.empty:
-    tr = historia_rynku.sum(axis=1)
-    dodaj_serie_z_etykieta(fig, tr.index, tr, 'Rynek (Równa Alokacja)',
-                           color='#38bdf8', width=1.5, dash='dash',
-                           ax=45, ay=25, marker_size=5, label_prefix="Rynek: ")
-fig.update_layout(
-    template="plotly_dark", height=450,
-    margin=dict(l=10, r=80, t=10, b=10),
-    yaxis=dict(zeroline=True, zerolinecolor='rgba(255,255,255,0.1)',
-               gridcolor='rgba(255,255,255,0.05)'),
-    xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
-    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)'),
-    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+if not hp.empty:
+    tm = hp.sum(axis=1)
+    dodaj_serie_z_etykieta(fig, tm.index, tm, wybrana, color=C["text"], width=2.5, fill=True)
+if not ha.empty:
+    ta = ha.sum(axis=1)
+    dodaj_serie_z_etykieta(fig, ta.index, ta, 'Średnia', color=f'{C["warn"]}99',
+                           width=1.5, dash='dot', ax=45, ay=-25, marker_size=5, label_prefix="Śr: ")
+if not hr.empty:
+    tr = hr.sum(axis=1)
+    dodaj_serie_z_etykieta(fig, tr.index, tr, 'Rynek (4×25)', color=C["info"],
+                           width=1.5, dash='dash', ax=45, ay=25, marker_size=5, label_prefix="Mkt: ")
+fig.update_layout(**dark_layout(height=420, margin=dict(l=10, r=80, t=10, b=10),
+    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)')))
 st.plotly_chart(fig, use_container_width=True)
-st.divider()
 
 
-# 3. TABELE + SENTYMENT (LEWA) | RANKING (PRAWA)
-col_left, col_right = st.columns([1.1, 1])
+# 4. TRZY KOLUMNY: WATERFALL | SENTYMENT | RANKING
+c1, c2, c3 = st.columns([1.1, 0.9, 1])
 
-with col_left:
-    st.subheader("Otwarte Pozycje")
-    if dane_do_tabeli:
-        st.dataframe(
-            pd.DataFrame(dane_do_tabeli),
-            column_config={
-                "Cena Start": st.column_config.NumberColumn(format="%.4f"),
-                "Cena LIVE": st.column_config.NumberColumn(format="%.4f"),
-                "Wynik": st.column_config.ProgressColumn(
-                    "Zysk/Strata", format="%f", min_value=-50, max_value=50),
-            }, use_container_width=True, hide_index=True)
+with c1:
+    section_label("🔬", "Dekompozycja wyniku")
+    if wklady:
+        pos = dict(sorted(wklady.items(), key=lambda x: abs(x[1]), reverse=True))
+        fig_wf = go.Figure()
+        run = 0
+        keys = list(pos.keys())
+        for n, v in pos.items():
+            k = CI.get(n, C["text"])
+            fig_wf.add_trace(go.Bar(x=[skrot_inst(n)], y=[v], base=[run], marker_color=k,
+                marker_opacity=0.9, text=[f"{v:+.2f}"], textposition='outside',
+                textfont=dict(color=k, size=12, family="JetBrains Mono"), showlegend=False))
+            run += v
+        # connectors
+        run2 = 0
+        for i, (n, v) in enumerate(pos.items()):
+            run2 += v
+            nxt = skrot_inst(keys[i+1]) if i < len(keys)-1 else "NETTO"
+            fig_wf.add_trace(go.Scatter(x=[skrot_inst(n), nxt], y=[run2, run2], mode='lines',
+                line=dict(color='rgba(148,163,184,0.12)', width=1, dash='dot'),
+                showlegend=False, hoverinfo='skip'))
+        kt = C["gain"] if zysk >= 0 else C["loss"]
+        fig_wf.add_trace(go.Bar(x=["NETTO"], y=[zysk], marker_color=kt,
+            marker_line=dict(color=kt, width=1.5),
+            text=[f"<b>{zysk:+.2f}</b>"], textposition='outside',
+            textfont=dict(color=kt, size=13, family="JetBrains Mono"), showlegend=False))
+        fig_wf.add_hline(y=0, line_dash="dot", line_color="rgba(148,163,184,0.15)")
+        fig_wf.update_layout(**dark_layout(height=380, barmode='overlay',
+            yaxis=dict(gridcolor='rgba(148,163,184,0.06)', title=None)))
+        st.plotly_chart(fig_wf, use_container_width=True)
     else:
-        st.info("Brak otwartych pozycji.")
+        st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:20px;">100% cash</div>', unsafe_allow_html=True)
 
-    st.write("")
-    st.subheader("Analiza Sentymentu")
-    fig_pie = make_subplots(rows=2, cols=2,
-        specs=[[{"type":"domain"},{"type":"domain"}],[{"type":"domain"},{"type":"domain"}]],
-        subplot_titles=list(sentyment.keys()))
-    for i, (inst, ds) in enumerate(sentyment.items()):
-        r, c = (i//2)+1, (i%2)+1
-        if ds['LONG']==0 and ds['SHORT']==0:
-            fig_pie.add_trace(go.Pie(labels=['Brak'], values=[1],
-                marker_colors=[KOLOR_NEUTRAL], hole=.5, textinfo='none'), row=r, col=c)
-        else:
-            fig_pie.add_trace(go.Pie(labels=['LONG','SHORT'],
-                values=[ds['LONG'], ds['SHORT']],
-                marker_colors=[KOLOR_ZYSK, KOLOR_STRATA],
-                textinfo='percent', hole=.5,
-                textfont=dict(color='#fff')), row=r, col=c)
-    for a in fig_pie['layout']['annotations']:
-        a['font'] = dict(size=13, color=KOLOR_NEUTRAL)
-    fig_pie.update_layout(template="plotly_dark", height=400,
-        margin=dict(l=10,r=10,t=40,b=10), showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_pie, use_container_width=True)
+with c2:
+    section_label("🧭", "Sentyment rynku")
+    render_sentyment_bars(sentyment)
 
-    # Net Exposure
-    st.subheader("Net Exposure")
-    ne = {i: ds["LONG"]-ds["SHORT"] for i, ds in sentyment.items()}
-    fig_ne = go.Figure(go.Bar(
-        x=list(ne.keys()), y=list(ne.values()),
-        marker_color=[KOLOR_ZYSK if v>=0 else KOLOR_STRATA for v in ne.values()],
-        text=[f"{v:+.0f}" for v in ne.values()],
-        textposition='outside', textfont=dict(color='#e5e7eb')))
-    fig_ne.update_layout(template="plotly_dark", height=250,
-        margin=dict(l=10,r=10,t=10,b=10),
-        yaxis=dict(zeroline=True, zerolinecolor='rgba(255,255,255,0.2)',
-                   gridcolor='rgba(255,255,255,0.05)', title="j. netto"),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_ne, use_container_width=True)
-
-with col_right:
-    st.subheader("Ranking Konkursowy")
-    st.dataframe(ranking_df,
-        column_config={
-            "Wynik": st.column_config.NumberColumn(format="%.4f"),
-            "Dystans do #1": st.column_config.NumberColumn(format="%.4f",
-                help="Różnica w j.p. do lidera. Lider = 0."),
-        },
-        height=600, use_container_width=True, hide_index=False)
-
-st.divider()
+with c3:
+    section_label("🏅", "Ranking")
+    render_ranking_html(ranking_df, wybrana, aktywne_portfele)
 
 
-# 4. WATERFALL — DEKOMPOZYCJA WYNIKU (zamiast wykresu notowań)
-st.subheader("Dekompozycja wyniku — wkład instrumentów")
-
-kolory_inst = {"S&P 500":"#3b82f6","US10Y Yield":"#a855f7",
-               "Złoto (Gold)":"#eab308","EUR/USD":"#06b6d4"}
-
-if wklady_instrumentow:
-    posort = dict(sorted(wklady_instrumentow.items(), key=lambda x: abs(x[1]), reverse=True))
-
-    fig_wf = go.Figure()
-    running = 0
-    nazwy_all = list(posort.keys()) + ["RAZEM"]
-    for nazwa, wartosc in posort.items():
-        kol = kolory_inst.get(nazwa, "#fff")
-        fig_wf.add_trace(go.Bar(
-            x=[nazwa], y=[wartosc], base=[running],
-            marker_color=kol, marker_opacity=0.85,
-            text=[f"{wartosc:+.2f}"], textposition='outside',
-            textfont=dict(color=kol, size=13), showlegend=False,
-            hovertemplate=f"<b>{nazwa}</b><br>Wkład: {wartosc:+.2f}<extra></extra>"))
-        running += wartosc
-
-    # Connector lines
-    run2 = 0
-    keys = list(posort.keys())
-    for i, (n, v) in enumerate(posort.items()):
-        run2 += v
-        nxt = keys[i+1] if i < len(keys)-1 else "RAZEM"
-        fig_wf.add_trace(go.Scatter(
-            x=[n, nxt], y=[run2, run2], mode='lines',
-            line=dict(color='rgba(255,255,255,0.15)', width=1, dash='dot'),
-            showlegend=False, hoverinfo='skip'))
-
-    # Słupek RAZEM
-    kt = KOLOR_ZYSK if zysk_laczny >= 0 else KOLOR_STRATA
-    fig_wf.add_trace(go.Bar(
-        x=["RAZEM"], y=[zysk_laczny],
-        marker_color=kt, marker_opacity=1.0,
-        marker_line=dict(color="#fff", width=1),
-        text=[f"<b>{zysk_laczny:+.2f}</b>"], textposition='outside',
-        textfont=dict(color=kt, size=14), showlegend=False))
-
-    fig_wf.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.2)")
-    fig_wf.update_layout(
-        template="plotly_dark", height=350,
-        margin=dict(l=10,r=20,t=10,b=10), barmode='overlay',
-        yaxis=dict(zeroline=True, zerolinecolor='rgba(255,255,255,0.2)',
-                   gridcolor='rgba(255,255,255,0.05)', title="Wkład (j.p.)"),
-        xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_wf, use_container_width=True)
-else:
-    st.info("Brak otwartych pozycji — nie ma czego dekomponować.")
-
-
-# 5. HISTORIA POZYCJI W RANKINGU
-hp = st.session_state.get(f"hist_poz_{wybrana_grupa}", [])
-if len(hp) > 1:
-    st.subheader(f"Pozycja w rankingu — {wybrana_grupa} (sesja)")
-    df_hp = pd.DataFrame(hp)
+# 5. HISTORIA POZYCJI
+hpd = st.session_state.get(f"hp_{wybrana}", [])
+if len(hpd) > 1:
+    section_label("📍", f"Pozycja {wybrana} — live tracking")
+    df_hp = pd.DataFrame(hpd)
     fig_hp = go.Figure()
-    fig_hp.add_trace(go.Scatter(
-        x=df_hp["czas"], y=df_hp["miejsce"],
-        mode='lines+markers', line=dict(color=KOLOR_ZOLTY, width=2.5),
-        marker=dict(color=KOLOR_ZOLTY, size=6), name="Pozycja"))
-    fig_hp.update_layout(
-        template="plotly_dark", height=250,
-        margin=dict(l=10,r=20,t=10,b=10),
-        yaxis=dict(autorange="reversed", dtick=1,
-                   gridcolor='rgba(255,255,255,0.05)', title="Miejsce"),
-        xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig_hp.add_trace(go.Scatter(x=df_hp["t"], y=df_hp["m"], mode='lines+markers',
+        line=dict(color=C["warn"], width=2), marker=dict(color=C["warn"], size=5)))
+    fig_hp.update_layout(**dark_layout(height=200,
+        yaxis=dict(autorange="reversed", dtick=1, gridcolor='rgba(148,163,184,0.06)', title=None)))
     st.plotly_chart(fig_hp, use_container_width=True)
 
-st.caption(f"Stan: {teraz.strftime('%H:%M:%S')} (Warsaw) | Auto-odświeżanie: 60s")
+# FOOTER
+st.markdown(f'<div style="text-align:center;padding:16px 0;color:{C["muted"]};font-size:11px;font-family:var(--font-mono);">◉ LIVE · {teraz.strftime("%H:%M:%S")} Warsaw · 60s refresh</div>', unsafe_allow_html=True)
