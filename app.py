@@ -486,6 +486,10 @@ teraz = datetime.now(TZ_WARSAW)
 ostatni_pon = teraz - timedelta(days=teraz.weekday())
 data_startu_str = ostatni_pon.strftime('%Y-%m-%d')
 
+# Piątek poprzedniego tygodnia — potrzebny do pobrania ceny zamknięcia (cena referencyjna)
+poprzedni_piatek = ostatni_pon - timedelta(days=3)  # pon - 3 = pt
+data_ref_str = poprzedni_piatek.strftime('%Y-%m-%d')
+
 # Rebalans dostepny od piatku 22:00 do niedzieli 23:00
 czy_rebalans = (
     (teraz.weekday() == 4 and teraz.hour >= 22) or  # piatek po zamknieciu
@@ -495,6 +499,7 @@ czy_rebalans = (
 
 @st.cache_data(ttl=60)
 def pobierz(ticker, start):
+    """Pobiera dane godzinowe od podanej daty (do wykresu intraday)."""
     try:
         h = yf.Ticker(ticker).history(start=start, interval="1h")
         if h.empty: h = yf.Ticker(ticker).history(period="5d", interval="1h")
@@ -506,19 +511,48 @@ def pobierz(ticker, start):
         logger.error("yf %s: %s", ticker, e)
         return pd.DataFrame()
 
+@st.cache_data(ttl=300)
+def pobierz_cene_ref(ticker, data_ref, data_start):
+    """Pobiera cenę zamknięcia z piątku (Close) jako cenę referencyjną tygodnia.
+    Używa danych dziennych, żeby uniknąć rozbieżności z danymi godzinowymi.
+    """
+    try:
+        h = yf.Ticker(ticker).history(start=data_ref, end=data_start, interval="1d")
+        if not h.empty:
+            return float(h['Close'].iloc[-1])
+    except Exception as e:
+        logger.error("yf ref %s: %s", ticker, e)
+    return None
+
 zmiany = {}
 hist_all = {}
 cache_rynk = {}
+ceny_ref = {}  # piątkowe ceny zamknięcia (cena referencyjna)
 
 with st.spinner('Synchronizacja...'):
     for nazwa, ticker in TICKERY.items():
+        # 1. Pobierz cenę referencyjną (piątkowy close z danych dziennych)
+        ref = pobierz_cene_ref(ticker, data_ref_str, data_startu_str)
+
+        # 2. Pobierz dane godzinowe bieżącego tygodnia (do wykresu)
         h = pobierz(ticker, data_startu_str)
         cache_rynk[nazwa] = h
-        if not h.empty:
+
+        if h.empty:
+            continue
+
+        # Ustal cenę referencyjną: priorytet = piątkowy close z daily,
+        # fallback = Open pierwszej godzinowej świeczki poniedziałku
+        if ref is not None and ref != 0:
+            o = ref
+        else:
             o = h['Open'].iloc[0]
-            if o != 0:
-                zmiany[nazwa] = (h['Close'].iloc[-1] - o) / o
-                hist_all[nazwa] = (h['Close'] - o) / o
+
+        ceny_ref[nazwa] = o
+
+        if o != 0:
+            zmiany[nazwa] = (h['Close'].iloc[-1] - o) / o
+            hist_all[nazwa] = (h['Close'] - o) / o
 
 if not zmiany:
     st.warning("Brak danych rynkowych.")
@@ -684,7 +718,7 @@ for nazwa, wiel in poz.items():
         h = cache_rynk.get(nazwa, pd.DataFrame())
         dane_tab.append({"Instrument": nazwa, "Kierunek": "LONG" if wiel > 0 else "SHORT",
                          "Wielkość": wiel,
-                         "Cena Start": h['Open'].iloc[0] if not h.empty else 0,
+                         "Cena Start": ceny_ref.get(nazwa, h['Open'].iloc[0] if not h.empty else 0),
                          "Cena LIVE": h['Close'].iloc[-1] if not h.empty else 0,
                          "Wynik": wp})
 
