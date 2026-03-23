@@ -749,7 +749,7 @@ dist = ranking_df.loc[ranking_df["Grupa"]==wybrana, "Dystans do #1"].values
 dist_val = dist[0] if len(dist) else 0
 
 render_stat_cards([
-    ("Stan konta", f"{stan:.2f}", f"start: {kap:.0f}", C["text"]),
+    ("Stan konta", f"{stan:.2f}", f"start: {kap:.2f}", C["text"]),
     ("P&L tygodnia", f"{zysk:+.2f}", f"{zm_prc:+.2f}%", C["gain"] if zysk >= 0 else C["loss"]),
     ("Alfa vs rynek", f"{alfa:+.2f}%", "vs 4x25 benchmark", C["gain"] if alfa > 0 else (C["loss"] if alfa < 0 else C["muted"])),
     ("Max Drawdown", f"{mdd:+.2f}%", "tygodniowe MDD", C["loss"] if mdd < -1 else (C["warn"] if mdd < 0 else C["gain"])),
@@ -761,23 +761,45 @@ render_stat_cards([
 # 2. WYKRES PORTFELA
 section_label("Stopa zwrotu vs benchmark")
 fig = go.Figure()
+
+# Buduj oś czasu: użyj dowolnej dostępnej serii godzinowej jako indeksu
+_idx_ref = None
+for _n in TICKERY:
+    _h = cache_rynk.get(_n, pd.DataFrame())
+    if not _h.empty:
+        _idx_ref = _h.index
+        break
+
+_ma_dane = False
+
 if not hp.empty:
     tm = hp.sum(axis=1)
     dodaj_serie_z_etykieta(fig, tm.index, tm, wybrana, color=C["text"], width=2.5, fill=True)
+    _ma_dane = True
+elif _idx_ref is not None:
+    # Portfel w 100% cash lub bez pozycji — rysuj poziomą linię na 0 (brak zmian)
+    tm = pd.Series(0.0, index=_idx_ref)
+    dodaj_serie_z_etykieta(fig, tm.index, tm, f"{wybrana} (cash)", color=C["muted"], width=2.0, dash='dot')
+    _ma_dane = True
+
 if not ha.empty:
     ta = ha.sum(axis=1)
     dodaj_serie_z_etykieta(fig, ta.index, ta, 'Średnia', color='rgba(245,158,11,0.6)',
                            width=1.5, dash='dot', ax=45, ay=-25, marker_size=5, label_prefix="Śr: ")
+    _ma_dane = True
+
 if not hr.empty:
     tr = hr.sum(axis=1)
     dodaj_serie_z_etykieta(fig, tr.index, tr, 'Rynek (4×25)', color=C["info"],
                            width=1.5, dash='dash', ax=45, ay=25, marker_size=5, label_prefix="Mkt: ")
-if not hp.empty or not ha.empty or not hr.empty:
+    _ma_dane = True
+
+if _ma_dane:
     fig.update_layout(**dark_layout(height=420, margin=dict(l=10, r=80, t=10, b=10),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(0,0,0,0)')))
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:30px 0;text-align:center;">Brak danych do wykresu — portfel w gotowce lub dane niedostepne.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="color:{C["muted"]};font-size:13px;padding:30px 0;text-align:center;">Brak danych rynkowych — giełda jeszcze nie otworzyła sesji.</div>', unsafe_allow_html=True)
 
 
 # 4. TRZY KOLUMNY: WATERFALL | SENTYMENT | RANKING
