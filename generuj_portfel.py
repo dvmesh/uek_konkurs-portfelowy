@@ -114,7 +114,7 @@ NOWE_POZYCJE_TYG2 = {
     "Grupa 10": None,
     "Grupa 11": None,
     "Grupa 12": None,
-    "Grupa 13": None,
+    "Grupa 13": {"SPX": 106.71, "GOLD": 0, "RENT": 0, "EURUSD": 0},
     "Grupa 14": None,
     "Grupa 15": None,
     "Grupa A":  None,
