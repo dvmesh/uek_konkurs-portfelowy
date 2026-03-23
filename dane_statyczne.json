@@ -331,7 +331,12 @@
         {
           "tydzien": "23.03-27.03",
           "kapital_startowy": 106.714265,
-          "pozycje": null
+          "pozycje": {
+             "SPX": 106.714265,
+            "GOLD": 0,
+            "RENT": 0,
+            "EURUSD": 0
+          }
         }
       ]
     },
