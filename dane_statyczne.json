@@ -11,35 +11,725 @@
     "RENT": "US10Y Yield",
     "EURUSD": "EUR/USD"
   },
-  "DANE_GRUP": {
-    "Grupa 1": {"SPX": -25, "GOLD": -25, "RENT": 0, "EURUSD": -50},
-    "Grupa 2": {"SPX": -50, "GOLD": 30, "RENT": 20, "EURUSD": 0},
-    "Grupa 3": {"SPX": -20, "GOLD": -10, "RENT": 45, "EURUSD": -25},
-    "Grupa 4": {"SPX": -35, "GOLD": 0, "RENT": 45, "EURUSD": -20},
-    "Grupa 5": {"SPX": -35, "GOLD": 35, "RENT": -15, "EURUSD": 15},
-    "Grupa 6": {"SPX": 70, "GOLD": 0, "RENT": 0, "EURUSD": 30},
-    "Grupa 7": {"SPX": -30, "GOLD": -30, "RENT": 0, "EURUSD": -40},
-    "Grupa 8": {"SPX": 40, "GOLD": 20, "RENT": 20, "EURUSD": 20},
-    "Grupa 9": {"SPX": 0, "GOLD": 0, "RENT": 20, "EURUSD": 0},
-    "Grupa 10": {"SPX": 0, "GOLD": -30, "RENT": 40, "EURUSD": -30},
-    "Grupa 11": {"SPX": 25, "GOLD": -25, "RENT": 25, "EURUSD": -25},
-    "Grupa 12": {"SPX": -60, "GOLD": 0, "RENT": 40, "EURUSD": 0},
-    "Grupa 13": {"SPX": 0, "GOLD": -50, "RENT": 50, "EURUSD": 0},
-    "Grupa 14": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": 0},
-    "Grupa 15": {"SPX": 10, "GOLD": 40, "RENT": 50, "EURUSD": 0},
-    "Grupa A": {"SPX": -30, "GOLD": 70, "RENT": 0, "EURUSD": 0},
-    "Grupa B": {"SPX": 50, "GOLD": 0, "RENT": 0, "EURUSD": -50},
-    "Grupa C": {"SPX": -30, "GOLD": -40, "RENT": 0, "EURUSD": -30},
-    "Grupa D": {"SPX": 40, "GOLD": 60, "RENT": 0, "EURUSD": 0},
-    "Grupa E": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
-    "Grupa F": {"SPX": -40, "GOLD": -25, "RENT": 25, "EURUSD": -10},
-    "Grupa G": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
-    "Grupa H": {"SPX": 70, "GOLD": 15, "RENT": 0, "EURUSD": 0},
-    "Grupa I": {"SPX": -50, "GOLD": 50, "RENT": 0, "EURUSD": 0},
-    "Grupa J": {"SPX": -70, "GOLD": 30, "RENT": 0, "EURUSD": 0},
-    "Grupa K": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
-    "Grupa L": {"SPX": -50, "GOLD": -50, "RENT": 0, "EURUSD": 0},
-    "Grupa M": {"SPX": -40, "GOLD": -40, "RENT": 0, "EURUSD": 0},
-    "Grupa N": {"SPX": 100, "GOLD": 0, "RENT": 0, "EURUSD": 0}
+  "GRUPY": {
+    "Grupa 1": {
+      "osoby": [
+        "Kacper Cieślak",
+        "Piotr Sarniak"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -25,
+            "GOLD": -25,
+            "RENT": 0,
+            "EURUSD": -50
+          },
+          "kapital_koncowy": 102.650501
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 102.650501,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 2": {
+      "osoby": [
+        "Stanisław Magiera",
+        "Jonasz Krynicki",
+        "Adrian Czerwiecki"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -50,
+            "GOLD": 30,
+            "RENT": 20,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 98.660416
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.660416,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 3": {
+      "osoby": [
+        "Dominik Skwarczek",
+        "Szymon Taźbirek",
+        "Marcel Skorodzień"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -20,
+            "GOLD": -10,
+            "RENT": 45,
+            "EURUSD": -25
+          },
+          "kapital_koncowy": 102.537886
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 102.537886,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 4": {
+      "osoby": [
+        "Hubert Ciechanowski",
+        "Daria Bors",
+        "Filip Krotowski"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -35,
+            "GOLD": 0,
+            "RENT": 45,
+            "EURUSD": -20
+          },
+          "kapital_koncowy": 101.920587
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 101.920587,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 5": {
+      "osoby": [
+        "Magdalena Jamróz",
+        "Magdalena Depta",
+        "Małgorzata Abram"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -35,
+            "GOLD": 35,
+            "RENT": -15,
+            "EURUSD": 15
+          },
+          "kapital_koncowy": 96.938881
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 96.938881,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 6": {
+      "osoby": [
+        "Bartłomiej Richter",
+        "Krzysztof Paś",
+        "Mateusz Ryska"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 70,
+            "GOLD": 0,
+            "RENT": 0,
+            "EURUSD": 30
+          },
+          "kapital_koncowy": 98.611109
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.611109,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 7": {
+      "osoby": [
+        "Mateusz Śmiech",
+        "Piotr Wieczorek",
+        "Maks Widła"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -30,
+            "GOLD": -30,
+            "RENT": 0,
+            "EURUSD": -40
+          },
+          "kapital_koncowy": 103.428548
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 103.428548,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 8": {
+      "osoby": [
+        "Maciej Haspel",
+        "Nikodem Greń",
+        "Aleksandra Araś"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 40,
+            "GOLD": 20,
+            "RENT": 20,
+            "EURUSD": 20
+          },
+          "kapital_koncowy": 97.701065
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 97.701065,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 9": {
+      "osoby": [
+        "Patryk Ulicki",
+        "Matti Saarela",
+        "Mikołaj Smółka"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 0,
+            "GOLD": 0,
+            "RENT": 20,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 100.572501
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 100.572501,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 10": {
+      "osoby": [
+        "Szymon Zabawa",
+        "Dawid Żuk",
+        "Janusz Trześniowski"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 0,
+            "GOLD": -30,
+            "RENT": 40,
+            "EURUSD": -30
+          },
+          "kapital_koncowy": 103.94289
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 103.94289,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 11": {
+      "osoby": [
+        "Jakub Fronc",
+        "Patryk Siejka",
+        "Dominik Olwiński"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 25,
+            "GOLD": -25,
+            "RENT": 25,
+            "EURUSD": -25
+          },
+          "kapital_koncowy": 102.418339
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 102.418339,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 12": {
+      "osoby": [
+        "Dominik Ryk",
+        "Natalia Rzeszutek"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -60,
+            "GOLD": 0,
+            "RENT": 40,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 102.654268
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 102.654268,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 13": {
+      "osoby": [
+        "Wiktor Hussakowski",
+        "Antoni Bulsiewicz",
+        "Jędrzej Jackowski"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 0,
+            "GOLD": -50,
+            "RENT": 50,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 106.714265
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 106.714265,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 14": {
+      "osoby": [
+        "Tomasz Kaczorowski",
+        "Jakub Czyszczon"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 50,
+            "GOLD": 0,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 98.742278
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.742278,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa 15": {
+      "osoby": [
+        "Stefan Monetti",
+        "Kateryna Yerchyk"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 10,
+            "GOLD": 40,
+            "RENT": 50,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 96.953299
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 96.953299,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa A": {
+      "osoby": [
+        "Glib Radchenko",
+        "Oliwer Mamak",
+        "Piotr Mycek"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -30,
+            "GOLD": 70,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 93.358417
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 93.358417,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa B": {
+      "osoby": [
+        "Jakub Jakóbczyk",
+        "Michał Klim",
+        "Patryk Kubisiak"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 50,
+            "GOLD": 0,
+            "RENT": 0,
+            "EURUSD": -50
+          },
+          "kapital_koncowy": 98.122413
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.122413,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa C": {
+      "osoby": [
+        "Adrian Pikulski",
+        "Mikołaj Stąsiek",
+        "Jakub Noga"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -30,
+            "GOLD": -40,
+            "RENT": 0,
+            "EURUSD": -30
+          },
+          "kapital_koncowy": 104.609123
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 104.609123,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa D": {
+      "osoby": [
+        "Krzysztof Warych",
+        "Dominika Różalska",
+        "Bartłomiej Rzekęć"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 40,
+            "GOLD": 60,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 92.654209
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 92.654209,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa E": {
+      "osoby": [
+        "Alicja Lechowicz",
+        "Patrycja Mach",
+        "Leon Bugaj"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -70,
+            "GOLD": 30,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 98.591003
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.591003,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa F": {
+      "osoby": [
+        "Jakub Wiącek",
+        "Bartłomiej Karwacki",
+        "Filip Grygierczyk"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -40,
+            "GOLD": -25,
+            "RENT": 25,
+            "EURUSD": -10
+          },
+          "kapital_koncowy": 104.239337
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 104.239337,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa G": {
+      "osoby": [
+        "Angela Chiocchi",
+        "Małgorzata Guzik",
+        "Łukasz Janiewicz"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -50,
+            "GOLD": -50,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 106.540733
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 106.540733,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa H": {
+      "osoby": [
+        "Karina Kozik",
+        "Jakub Burek"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 70,
+            "GOLD": 15,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 96.654286
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 96.654286,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa I": {
+      "osoby": [
+        "Maja Płonka",
+        "Julia Majdak",
+        "Igor Sikora"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -50,
+            "GOLD": 50,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 95.97471
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 95.97471,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa J": {
+      "osoby": [
+        "Szymon Skierkowski",
+        "Filip Schindler",
+        "Konrad Jarosz"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -70,
+            "GOLD": 30,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 98.591003
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 98.591003,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa K": {
+      "osoby": [
+        "Ewelina Lisak",
+        "Martyna Pinda",
+        "Bartłomiej Zwierzchowski"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -50,
+            "GOLD": -50,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 106.540733
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 106.540733,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa L": {
+      "osoby": [
+        "Szymon Dzwonnik",
+        "Kamil Dziekan",
+        "Michał Bartos"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -50,
+            "GOLD": -50,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 106.540733
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 106.540733,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa M": {
+      "osoby": [
+        "Urszula Jemioło",
+        "Natalia Obara",
+        "Weronika Lewoń"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": -40,
+            "GOLD": -40,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 105.232587
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 105.232587,
+          "pozycje": null
+        }
+      ]
+    },
+    "Grupa N": {
+      "osoby": [
+        "Błażej Niewiarowski",
+        "Natalia Rogowska"
+      ],
+      "tygodnie": [
+        {
+          "tydzien": "16.03-20.03",
+          "kapital_startowy": 100.0,
+          "pozycje": {
+            "SPX": 100,
+            "GOLD": 0,
+            "RENT": 0,
+            "EURUSD": 0
+          },
+          "kapital_koncowy": 97.484557
+        },
+        {
+          "tydzien": "23.03-27.03",
+          "kapital_startowy": 97.484557,
+          "pozycje": null
+        }
+      ]
+    }
   }
 }

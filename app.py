@@ -20,7 +20,7 @@ st_autorefresh(interval=60_000, key="auto_refresh")
 logger = logging.getLogger(__name__)
 
 TZ_WARSAW = ZoneInfo("Europe/Warsaw")
-PLIK_USTAWIEN = "portfel.json"
+PLIK_DANYCH = "dane_statyczne.json"
 PLIK_LOGU = "log_zmian.json"
 
 # === PALETA KOLORÓW ===
@@ -154,31 +154,22 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 
 def wczytaj_dane_statyczne():
     try:
-        with open("dane_statyczne.json", "r", encoding="utf-8") as f:
+        with open(PLIK_DANYCH, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         st.error("Brak pliku dane_statyczne.json!")
-        return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
+        return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "GRUPY": {}}
     except json.JSONDecodeError as e:
         st.error(f"Błąd parsowania: {e}")
-        return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "DANE_GRUP": {}}
+        return {"TICKERY": {}, "MAPOWANIE_PDF": {}, "GRUPY": {}}
 
-def wczytaj_ustawienia():
-    if os.path.exists(PLIK_USTAWIEN):
-        try:
-            with open(PLIK_USTAWIEN, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning("portfel.json: %s", e)
-    return {}
-
-def backup_portfela():
-    if os.path.exists(PLIK_USTAWIEN):
+def backup_danych():
+    if os.path.exists(PLIK_DANYCH):
         ts = datetime.now(TZ_WARSAW).strftime('%Y%m%d_%H%M%S')
-        shutil.copy2(PLIK_USTAWIEN, f"portfel_backup_{ts}.json")
+        shutil.copy2(PLIK_DANYCH, f"dane_statyczne_backup_{ts}.json")
 
-def zapisz_ustawienia(dane):
-    with open(PLIK_USTAWIEN, "w", encoding="utf-8") as f:
+def zapisz_dane_statyczne(dane):
+    with open(PLIK_DANYCH, "w", encoding="utf-8") as f:
         json.dump(dane, f, ensure_ascii=False, indent=2)
 
 def zapisz_log(grupa, stare, nowe):
@@ -468,26 +459,29 @@ def dark_layout(**kw):
 
 dane_stat = wczytaj_dane_statyczne()
 TICKERY = dane_stat.get("TICKERY", {})
-DANE_GRUP = dane_stat.get("DANE_GRUP", {})
-ustawienia = wczytaj_ustawienia()
+GRUPY = dane_stat.get("GRUPY", {})
+
+MAP_POZ = {"SPX": "S&P 500", "GOLD": "Złoto (Gold)", "RENT": "US10Y Yield", "EURUSD": "EUR/USD"}
 
 aktywne_portfele = {}
-for g_nazwa, g_poz in DANE_GRUP.items():
+for g_nazwa, g_dane in GRUPY.items():
+    tygodnie = g_dane.get("tygodnie", [])
+    if not tygodnie:
+        continue
+    # Bieżący tydzień = ostatni w tablicy
+    biezacy = tygodnie[-1]
+    kap = biezacy.get("kapital_startowy", 100.0)
+    poz_raw = biezacy.get("pozycje")  # None = cash (nie podano)
+
+    if poz_raw is not None:
+        pozycje = {MAP_POZ.get(k, k): float(v) for k, v in poz_raw.items()}
+    else:
+        pozycje = {v: 0.0 for v in MAP_POZ.values()}
+
     aktywne_portfele[g_nazwa] = {
-        "kapital_startowy": 100.0,
-        "pozycje": {"S&P 500": g_poz.get("SPX", 0.0), "Złoto (Gold)": g_poz.get("GOLD", 0.0),
-                    "US10Y Yield": g_poz.get("RENT", 0.0), "EUR/USD": g_poz.get("EURUSD", 0.0)}
+        "kapital_startowy": kap,
+        "pozycje": pozycje,
     }
-for g_nazwa, g_dane in ustawienia.items():
-    if isinstance(g_dane, dict) and "kapital_startowy" in g_dane and "pozycje" in g_dane:
-        # Jeśli pozycje nie są zatwierdzone na bieżący tydzień → traktuj jako cash
-        if not g_dane.get("pozycje_zatwierdzone", True):
-            aktywne_portfele[g_nazwa] = {
-                "kapital_startowy": g_dane["kapital_startowy"],
-                "pozycje": {k: 0.0 for k in g_dane["pozycje"]},
-            }
-        else:
-            aktywne_portfele[g_nazwa] = g_dane
 
 teraz = datetime.now(TZ_WARSAW)
 ostatni_pon = teraz - timedelta(days=teraz.weekday())
@@ -655,9 +649,14 @@ with st.sidebar:
                 np_ = {k: st.number_input(k, value=float(gpoz.get(k,0)), step=5.0) for k in TICKERY}
                 if sum(abs(v) for v in np_.values()) > nk: st.error("Limit przekroczony.")
                 elif st.button("Zapisz"):
-                    backup_portfela()
-                    ustawienia[gr] = {"kapital_startowy": nk, "pozycje": np_, "pozycje_zatwierdzone": True}
-                    zapisz_ustawienia(ustawienia); zapisz_log(gr, aktywne_portfele.get(gr,{}), ustawienia[gr])
+                    backup_danych()
+                    # Zapisz pozycje do bieżącego tygodnia w dane_statyczne.json
+                    MAP_APP_DO_POZ = {"S&P 500": "SPX", "Złoto (Gold)": "GOLD", "US10Y Yield": "RENT", "EUR/USD": "EURUSD"}
+                    poz_skrot = {MAP_APP_DO_POZ[k]: v for k, v in np_.items()}
+                    dane_stat["GRUPY"][gr]["tygodnie"][-1]["pozycje"] = poz_skrot
+                    dane_stat["GRUPY"][gr]["tygodnie"][-1]["kapital_startowy"] = nk
+                    zapisz_dane_statyczne(dane_stat)
+                    zapisz_log(gr, aktywne_portfele.get(gr,{}), {"kapital_startowy": nk, "pozycje": np_})
                     st.cache_data.clear(); st.success(f"Zapisano: {gr}"); st.rerun()
             else:
                 st.caption("Edytuj, kliknij Zapisz batch.")
@@ -675,12 +674,19 @@ with st.sidebar:
                 errs = [f'{r["Grupa"]}' for _,r in ed.iterrows() if abs(r["SPX"])+abs(r["GOLD"])+abs(r["10Y"])+abs(r["EUR"])>r["Kap"]]
                 for e in errs: st.error(f"Limit: {e}")
                 if not errs and st.button("Zapisz batch"):
-                    backup_portfela(); cnt=0
+                    backup_danych()
+                    MAP_APP_DO_POZ = {"S&P 500": "SPX", "Złoto (Gold)": "GOLD", "US10Y Yield": "RENT", "EUR/USD": "EURUSD"}
+                    cnt=0
                     for _,r in ed.iterrows():
-                        n={"kapital_startowy":r["Kap"],"pozycje":{"S&P 500":r["SPX"],"Złoto (Gold)":r["GOLD"],"US10Y Yield":r["10Y"],"EUR/USD":r["EUR"]},"pozycje_zatwierdzone":True}
-                        if n!=aktywne_portfele.get(r["Grupa"],{}): zapisz_log(r["Grupa"],aktywne_portfele.get(r["Grupa"],{}),n); cnt+=1
-                        ustawienia[r["Grupa"]]=n
-                    zapisz_ustawienia(ustawienia); st.cache_data.clear()
+                        gn = r["Grupa"]
+                        poz_skrot = {"SPX": r["SPX"], "GOLD": r["GOLD"], "RENT": r["10Y"], "EURUSD": r["EUR"]}
+                        old_poz = dane_stat["GRUPY"][gn]["tygodnie"][-1].get("pozycje")
+                        if poz_skrot != old_poz:
+                            dane_stat["GRUPY"][gn]["tygodnie"][-1]["pozycje"] = poz_skrot
+                            dane_stat["GRUPY"][gn]["tygodnie"][-1]["kapital_startowy"] = r["Kap"]
+                            zapisz_log(gn, aktywne_portfele.get(gn,{}), {"pozycje": poz_skrot})
+                            cnt+=1
+                    zapisz_dane_statyczne(dane_stat); st.cache_data.clear()
                     st.success(f"Zapisano: {cnt} zmian"); st.rerun()
 
     st.divider()
