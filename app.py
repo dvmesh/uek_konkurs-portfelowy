@@ -480,7 +480,14 @@ for g_nazwa, g_poz in DANE_GRUP.items():
     }
 for g_nazwa, g_dane in ustawienia.items():
     if isinstance(g_dane, dict) and "kapital_startowy" in g_dane and "pozycje" in g_dane:
-        aktywne_portfele[g_nazwa] = g_dane
+        # Jeśli pozycje nie są zatwierdzone na bieżący tydzień → traktuj jako cash
+        if not g_dane.get("pozycje_zatwierdzone", True):
+            aktywne_portfele[g_nazwa] = {
+                "kapital_startowy": g_dane["kapital_startowy"],
+                "pozycje": {k: 0.0 for k in g_dane["pozycje"]},
+            }
+        else:
+            aktywne_portfele[g_nazwa] = g_dane
 
 teraz = datetime.now(TZ_WARSAW)
 ostatni_pon = teraz - timedelta(days=teraz.weekday())
@@ -649,7 +656,7 @@ with st.sidebar:
                 if sum(abs(v) for v in np_.values()) > nk: st.error("Limit przekroczony.")
                 elif st.button("Zapisz"):
                     backup_portfela()
-                    ustawienia[gr] = {"kapital_startowy": nk, "pozycje": np_}
+                    ustawienia[gr] = {"kapital_startowy": nk, "pozycje": np_, "pozycje_zatwierdzone": True}
                     zapisz_ustawienia(ustawienia); zapisz_log(gr, aktywne_portfele.get(gr,{}), ustawienia[gr])
                     st.cache_data.clear(); st.success(f"Zapisano: {gr}"); st.rerun()
             else:
@@ -670,7 +677,7 @@ with st.sidebar:
                 if not errs and st.button("Zapisz batch"):
                     backup_portfela(); cnt=0
                     for _,r in ed.iterrows():
-                        n={"kapital_startowy":r["Kap"],"pozycje":{"S&P 500":r["SPX"],"Złoto (Gold)":r["GOLD"],"US10Y Yield":r["10Y"],"EUR/USD":r["EUR"]}}
+                        n={"kapital_startowy":r["Kap"],"pozycje":{"S&P 500":r["SPX"],"Złoto (Gold)":r["GOLD"],"US10Y Yield":r["10Y"],"EUR/USD":r["EUR"]},"pozycje_zatwierdzone":True}
                         if n!=aktywne_portfele.get(r["Grupa"],{}): zapisz_log(r["Grupa"],aktywne_portfele.get(r["Grupa"],{}),n); cnt+=1
                         ustawienia[r["Grupa"]]=n
                     zapisz_ustawienia(ustawienia); st.cache_data.clear()

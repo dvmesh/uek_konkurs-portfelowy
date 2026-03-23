@@ -155,28 +155,32 @@ def main():
 
         nowe = NOWE_POZYCJE_TYG2.get(g_nazwa)
         if nowe is not None:
+            # Grupa podała nowe pozycje → zatwierdzone
             pozycje = {
                 "S&P 500": float(nowe.get("SPX", 0)),
                 "Złoto (Gold)": float(nowe.get("GOLD", 0)),
                 "US10Y Yield": float(nowe.get("RENT", 0)),
                 "EUR/USD": float(nowe.get("EURUSD", 0)),
             }
+            zatwierdzone = True
         else:
-            stare = POZYCJE_TYG1.get(g_nazwa, {})
+            # Grupa NIE podała nowych pozycji → cash, czeka na rebalans
             pozycje = {
-                "S&P 500": float(stare.get("SPX", 0)),
-                "Złoto (Gold)": float(stare.get("GOLD", 0)),
-                "US10Y Yield": float(stare.get("RENT", 0)),
-                "EUR/USD": float(stare.get("EURUSD", 0)),
+                "S&P 500": 0.0,
+                "Złoto (Gold)": 0.0,
+                "US10Y Yield": 0.0,
+                "EUR/USD": 0.0,
             }
+            zatwierdzone = False
 
         suma_wag = sum(abs(v) for v in pozycje.values())
-        if suma_wag > kap + 0.01:
+        if zatwierdzone and suma_wag > kap + 0.01:
             errors.append(f"  ⚠️  {g_nazwa}: suma|wag|={suma_wag:.2f} > kapitał={kap:.2f}")
 
         portfel[g_nazwa] = {
             "kapital_startowy": round(kap, 6),
             "pozycje": pozycje,
+            "pozycje_zatwierdzone": zatwierdzone,
         }
 
     if os.path.exists("portfel.json"):
